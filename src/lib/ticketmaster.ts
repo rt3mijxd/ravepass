@@ -153,26 +153,38 @@ export async function searchEventsByCountry(
  */
 export async function searchEventsByArtist(
   artistName: string,
-  options: { size?: number } = {}
+  options: { size?: number; maxPages?: number } = {}
 ): Promise<Concert[]> {
   if (!API_KEY) return [];
 
-  const { size = 200 } = options;
-  const params = new URLSearchParams({
-    apikey: API_KEY,
-    keyword: artistName,
-    classificationName: "music",
-    size: String(size),
-    sort: "date,asc",
-  });
+  const { size = 200, maxPages = 3 } = options;
+  const allConcerts: Concert[] = [];
 
-  const url = `${BASE_URL}/events.json?${params}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) return [];
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({
+      apikey: API_KEY,
+      keyword: artistName,
+      classificationName: "music",
+      size: String(size),
+      page: String(page),
+      sort: "date,asc",
+    });
 
-  const data: TMResponse = await res.json();
-  const events = data._embedded?.events ?? [];
-  return events.map(parseTMEvent).filter((c): c is Concert => c !== null);
+    const url = `${BASE_URL}/events.json?${params}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) break;
+
+    const data: TMResponse = await res.json();
+    const events = data._embedded?.events ?? [];
+    const concerts = events.map(parseTMEvent).filter((c): c is Concert => c !== null);
+    allConcerts.push(...concerts);
+
+    // Если это последняя страница — выходим
+    const totalPages = data.page?.totalPages ?? 1;
+    if (page + 1 >= totalPages) break;
+  }
+
+  return allConcerts;
 }
 
 // Топовые артисты — их концерты показываем первыми
@@ -202,7 +214,7 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
 
   for (const batch of artistBatches) {
     const results = await Promise.allSettled(
-      batch.map((name) => searchEventsByArtist(name, { size: 50 }))
+      batch.map((name) => searchEventsByArtist(name, { size: 200 }))
     );
     for (const result of results) {
       if (result.status === "fulfilled") {

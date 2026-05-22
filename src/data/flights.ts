@@ -1,6 +1,6 @@
-import type { CityCode, FlightRoute } from "@/types";
+import type { FlightRoute } from "@/types";
 
-export const cityNames: Record<CityCode, string> = {
+export const cityNames: Record<string, string> = {
   MOW: "Москва",
   LED: "Санкт-Петербург",
   ALA: "Алматы",
@@ -72,13 +72,13 @@ const cityToAirport: Record<string, string> = {
   "Ankara": "IST", "Antalya": "IST", "Izmir": "IST",
 };
 
-export function findFlightRoute(origin: CityCode, destinationCity: string): FlightRoute | null {
+export function findFlightRoute(origin: string, destinationCity: string): FlightRoute | null {
   const airportCode = cityToAirport[destinationCity];
   if (!airportCode) return null;
   return flightRoutes.find((r) => r.origin === origin && r.destination === airportCode) ?? null;
 }
 
-export function getAviasalesUrl(origin: CityCode, destinationCity: string, date: string): string {
+export function getAviasalesUrl(origin: string, destinationCity: string, date: string): string {
   const dest = cityToAirport[destinationCity] ?? destinationCity;
   return `https://www.aviasales.ru/?marker=YOUR_ID&origin=${origin}&destination=${dest}&depart_date=${date}`;
 }

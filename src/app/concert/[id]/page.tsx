@@ -4,33 +4,23 @@ import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import { getVisaStatus, isVisaFree, VISA_LAST_UPDATED } from "@/data/visas";
 import { findFlightRoute, getAviasalesUrl } from "@/data/flights";
-import CustomSelect from "@/components/CustomSelect";
+import SearchableSelect from "@/components/SearchableSelect";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
-import type { PassportCode, CityCode, Concert } from "@/types";
+import { getPassportOptions } from "@/data/passports";
+import { getCityOptions, getCityName } from "@/data/cities";
+import type { Concert } from "@/types";
 
 export default function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { lang, currency } = useSettings();
   const [concert, setConcert] = useState<Concert | null>(null);
   const [loading, setLoading] = useState(true);
-  const [passport, setPassport] = useState<PassportCode>("RU");
-  const [originCity, setOriginCity] = useState<CityCode>("MOW");
+  const [passport, setPassport] = useState("RU");
+  const [originCity, setOriginCity] = useState("MOW");
 
-  const passportOptions = [
-    { value: "RU", label: t("passport.RU", lang) },
-    { value: "AM", label: t("passport.AM", lang) },
-    { value: "GE", label: t("passport.GE", lang) },
-    { value: "KZ", label: t("passport.KZ", lang) },
-  ];
-
-  const cityOptions = [
-    { value: "MOW", label: t("city.MOW", lang) },
-    { value: "LED", label: t("city.LED", lang) },
-    { value: "ALA", label: t("city.ALA", lang) },
-    { value: "EVN", label: t("city.EVN", lang) },
-    { value: "TBS", label: t("city.TBS", lang) },
-  ];
+  const passportOpts = getPassportOptions(lang);
+  const cityOpts = getCityOptions(lang);
 
   useEffect(() => {
     fetch(`/api/concert/${id}`)
@@ -72,7 +62,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
   const flightMin = flight ? convertPrice(flight.priceRange[0], "RUB", currency) : null;
   const flightMax = flight ? convertPrice(flight.priceRange[1], "RUB", currency) : null;
 
-  const originCityName = cityOptions.find((c) => c.value === originCity)?.label ?? originCity;
+  const originCityName = getCityName(originCity, lang);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -103,10 +93,10 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
         <h2 className="font-semibold">{t("concert.your_trip", lang)}</h2>
         <div className="grid grid-cols-2 gap-3">
-          <CustomSelect label={t("filter.passport", lang)} options={passportOptions} value={passport}
-            onChange={(v) => setPassport(v as PassportCode)} />
-          <CustomSelect label={t("filter.origin_city", lang)} options={cityOptions} value={originCity}
-            onChange={(v) => setOriginCity(v as CityCode)} />
+          <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
+            onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
+          <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
+            onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">

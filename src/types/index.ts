@@ -1,4 +1,8 @@
-export type PassportCode = "RU" | "AM" | "GE" | "KZ";
+// Основные паспорта с детальными визовыми данными
+export type CorePassportCode = "RU" | "AM" | "GE" | "KZ";
+
+// Все поддерживаемые паспорта (расширенный список)
+export type PassportCode = string;
 
 export type CityCode = "MOW" | "LED" | "ALA" | "EVN" | "TBS";
 
@@ -32,7 +36,7 @@ export interface Artist extends ArtistSummary {
 }
 
 export interface FlightRoute {
-  origin: CityCode;
+  origin: string;
   destination: string;
   direct: boolean;
   priceRange: [number, number];

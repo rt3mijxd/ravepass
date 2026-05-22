@@ -1,8 +1,9 @@
-import type { PassportCode, VisaStatus } from "@/types";
+import type { CorePassportCode, VisaStatus } from "@/types";
 
-export const VISA_LAST_UPDATED = "2026-05-10";
+export const VISA_LAST_UPDATED = "2026-05-22";
 
-export const visaData: Record<string, Record<PassportCode, VisaStatus>> = {
+// Основная таблица для 4 детализированных паспортов (RU, AM, GE, KZ)
+export const visaData: Record<string, Record<CorePassportCode, VisaStatus>> = {
   // Безвизовые для всех
   TR: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },
   RS: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },
@@ -116,8 +117,117 @@ export const visaStatusLabels: Record<VisaStatus, string> = {
   visa_required: "Нужна виза",
 };
 
-export function getVisaStatus(countryCode: string, passport: PassportCode): VisaStatus | null {
-  return visaData[countryCode]?.[passport] ?? null;
+// Расширенные визовые данные для других паспортов
+// Формат: passportCode -> { countryCode -> VisaStatus }
+const extendedVisaData: Record<string, Record<string, VisaStatus>> = {
+  // Украина — безвиз с ЕС, много безвизовых
+  UA: {
+    TR: "visa_free", RS: "visa_free", ME: "visa_free", BA: "visa_free",
+    AE: "visa_free", TH: "visa_free", GE: "visa_free", AM: "visa_free",
+    KZ: "visa_free", KG: "visa_free", UZ: "visa_free", AZ: "visa_free",
+    BY: "visa_free", MD: "visa_free", IL: "visa_free", MA: "visa_free",
+    AR: "visa_free", BR: "visa_free", EG: "visa_on_arrival",
+    // Шенген — безвиз
+    DE: "visa_free", FR: "visa_free", ES: "visa_free", IT: "visa_free",
+    NL: "visa_free", PT: "visa_free", AT: "visa_free", CZ: "visa_free",
+    PL: "visa_free", SE: "visa_free", FI: "visa_free", NO: "visa_free",
+    DK: "visa_free", BE: "visa_free", GR: "visa_free", HU: "visa_free",
+    HR: "visa_free", RO: "visa_free", BG: "visa_free", SK: "visa_free",
+    SI: "visa_free", LT: "visa_free", LV: "visa_free", EE: "visa_free",
+    IE: "visa_free", GB: "visa_free",
+    US: "visa_required", CA: "visa_required", AU: "visa_required",
+    JP: "visa_free", KR: "visa_free", SG: "visa_free",
+  },
+  // Беларусь
+  BY: {
+    TR: "visa_free", RS: "visa_free", ME: "visa_free", BA: "visa_free",
+    AE: "visa_free", TH: "visa_free", GE: "visa_free", AM: "visa_free",
+    KZ: "visa_free", KG: "visa_free", UZ: "visa_free", AZ: "visa_free",
+    MD: "visa_free", RU: "visa_free", IL: "visa_free", MA: "visa_free",
+    EG: "visa_on_arrival", AR: "visa_free", BR: "visa_free",
+    DE: "visa_required", FR: "visa_required", ES: "visa_required",
+    IT: "visa_required", GB: "visa_required", US: "visa_required",
+    JP: "visa_required", KR: "visa_required", CN: "visa_free",
+  },
+  // Узбекистан
+  UZ: {
+    TR: "visa_free", RS: "visa_free", AE: "visa_free", TH: "visa_free",
+    GE: "visa_free", AM: "visa_free", KZ: "visa_free", KG: "visa_free",
+    AZ: "visa_free", BY: "visa_free", RU: "visa_free", MD: "visa_free",
+    MY: "visa_free", ID: "visa_free", KR: "visa_free",
+    DE: "visa_required", FR: "visa_required", US: "visa_required",
+    GB: "visa_required", IL: "visa_free",
+  },
+  // Кыргызстан
+  KG: {
+    TR: "visa_free", RS: "visa_free", AE: "visa_free", TH: "visa_free",
+    GE: "visa_free", AM: "visa_free", KZ: "visa_free", UZ: "visa_free",
+    AZ: "visa_free", BY: "visa_free", RU: "visa_free", MY: "visa_free",
+    DE: "visa_required", FR: "visa_required", US: "visa_required",
+    GB: "visa_required", KR: "visa_free",
+  },
+  // Азербайджан
+  AZ: {
+    TR: "visa_free", RS: "visa_free", GE: "visa_free", KZ: "visa_free",
+    KG: "visa_free", UZ: "visa_free", BY: "visa_free", RU: "visa_free",
+    AE: "visa_free", MY: "visa_free", KR: "visa_free",
+    DE: "visa_required", FR: "visa_required", US: "visa_required",
+    GB: "visa_required",
+  },
+  // Молдова — безвиз с ЕС
+  MD: {
+    TR: "visa_free", RS: "visa_free", ME: "visa_free", BA: "visa_free",
+    GE: "visa_free", AM: "visa_free", KZ: "visa_free", BY: "visa_free",
+    RU: "visa_free", AZ: "visa_free", AE: "visa_free",
+    DE: "visa_free", FR: "visa_free", ES: "visa_free", IT: "visa_free",
+    NL: "visa_free", PT: "visa_free", AT: "visa_free", CZ: "visa_free",
+    PL: "visa_free", SE: "visa_free", GB: "visa_free",
+    US: "visa_required", CA: "visa_required",
+  },
+  // Таджикистан
+  TJ: {
+    TR: "visa_free", KZ: "visa_free", KG: "visa_free", UZ: "visa_free",
+    RU: "visa_free", BY: "visa_free", AZ: "visa_free",
+    AE: "visa_on_arrival", TH: "visa_on_arrival",
+    DE: "visa_required", FR: "visa_required", US: "visa_required",
+  },
+  // Туркменистан
+  TM: {
+    TR: "visa_free", KZ: "visa_free", KG: "visa_free", UZ: "visa_free",
+    RU: "visa_free",
+    AE: "visa_on_arrival", TH: "visa_on_arrival",
+    DE: "visa_required", FR: "visa_required", US: "visa_required",
+  },
+  // Паспорта ЕС / развитых стран — безвиз почти везде
+  US: { _default: "visa_free", RU: "visa_required", CN: "visa_required", IN: "visa_required" },
+  GB: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
+  DE: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
+  FR: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
+  IL: { _default: "visa_free", RU: "visa_free", MY: "visa_required" },
+  TR: { _default: "visa_required", GE: "visa_free", AZ: "visa_free", KZ: "visa_free", RS: "visa_free", BA: "visa_free" },
+  JP: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
+  KR: { _default: "visa_free", RU: "visa_required" },
+};
+
+export function getVisaStatus(countryCode: string, passport: string): VisaStatus | null {
+  // 1. Проверяем основную таблицу (для RU, AM, GE, KZ)
+  const corePassport = passport as CorePassportCode;
+  if (visaData[countryCode]?.[corePassport]) {
+    return visaData[countryCode][corePassport];
+  }
+
+  // 2. Свой паспорт = свою страну не нужна виза
+  if (countryCode === passport) return "visa_free";
+
+  // 3. Проверяем расширенную таблицу
+  const extData = extendedVisaData[passport];
+  if (extData) {
+    if (extData[countryCode]) return extData[countryCode];
+    if (extData._default) return extData._default as VisaStatus;
+  }
+
+  // 4. Если ничего не найдено — возвращаем null (неизвестно)
+  return null;
 }
 
 export function isVisaFree(status: VisaStatus): boolean {

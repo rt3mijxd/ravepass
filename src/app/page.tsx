@@ -6,7 +6,8 @@ import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, countryNames } from "@/data/visas";
 import { findFlightRoute, cityNames } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
-import type { PassportCode, CityCode, Concert } from "@/types";
+import type { PassportCode, CityCode, Concert, VisaStatus } from "@/types";
+import type { FlightRoute } from "@/types";
 
 const passportOptions = [
   { value: "RU", label: "Российский" },
@@ -32,6 +33,20 @@ const popularDestinations = [
   { city: "Алматы", countryCode: "KZ", emoji: "🇰🇿" },
 ];
 
+interface EnrichedConcert {
+  concert: Concert;
+  visa: VisaStatus | null;
+  flight: FlightRoute | null;
+}
+
+interface ArtistGroup {
+  artistName: string;
+  slug: string;
+  imageUrl: string;
+  genre: string;
+  concerts: EnrichedConcert[];
+}
+
 export default function HomePage() {
   const [allConcerts, setAllConcerts] = useState<Concert[]>(mockConcerts);
   const [loading, setLoading] = useState(true);
@@ -43,7 +58,6 @@ export default function HomePage() {
   const [countryFilter, setCountryFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
 
-  // Загружаем реальные данные из API
   useEffect(() => {
     fetch("/api/concerts")
       .then((res) => res.json())
@@ -66,17 +80,18 @@ export default function HomePage() {
     ...availableCountries.map((code) => ({ value: code, label: countryNames[code] ?? code })),
   ], [availableCountries]);
 
-  const concerts = useMemo(() => {
+  // Группируем концерты по артисту
+  const artistGroups = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    return allConcerts
-      .map((concert) => {
-        const visa = getVisaStatus(concert.countryCode, passport);
-        const flight = findFlightRoute(originCity, concert.city);
-        return { concert, visa, flight };
-      })
+    // Фильтруем и обогащаем
+    const filtered = allConcerts
+      .map((concert) => ({
+        concert,
+        visa: getVisaStatus(concert.countryCode, passport),
+        flight: findFlightRoute(originCity, concert.city),
+      }))
       .filter(({ concert, visa, flight }) => {
-        // Поиск по артисту
         if (query && !concert.artist.name.toLowerCase().includes(query)) return false;
         if (visaFreeOnly && visa && !isVisaFree(visa)) return false;
         if (directOnly && flight && !flight.direct) return false;
@@ -85,7 +100,34 @@ export default function HomePage() {
         if (cityFilter && concert.city !== cityFilter) return false;
         return true;
       });
+
+    // Группируем по slug артиста
+    const groupMap = new Map<string, ArtistGroup>();
+
+    for (const item of filtered) {
+      const slug = item.concert.artist.slug;
+      if (!groupMap.has(slug)) {
+        groupMap.set(slug, {
+          artistName: item.concert.artist.name,
+          slug,
+          imageUrl: item.concert.artist.imageUrl,
+          genre: item.concert.artist.genre,
+          concerts: [],
+        });
+      }
+      groupMap.get(slug)!.concerts.push(item);
+    }
+
+    // Сортируем концерты внутри каждой группы по дате
+    for (const group of groupMap.values()) {
+      group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
+    }
+
+    // Сортируем группы: больше концертов = выше
+    return Array.from(groupMap.values()).sort((a, b) => b.concerts.length - a.concerts.length);
   }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
+
+  const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
@@ -102,10 +144,8 @@ export default function HomePage() {
           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
         {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-          >
+          <button onClick={() => setSearchQuery("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
             ✕
           </button>
         )}
@@ -167,12 +207,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Список концертов */}
+      {/* Список артистов с концертами */}
       <section>
         <h2 className="text-lg font-semibold mb-3">
           Концерты{" "}
           <span className="text-zinc-500 font-normal text-sm">
-            ({loading ? "..." : concerts.length})
+            ({loading ? "..." : `${totalConcerts} событий, ${artistGroups.length} артистов`})
           </span>
         </h2>
 
@@ -183,73 +223,83 @@ export default function HomePage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {concerts.map(({ concert, visa, flight }) => {
+          {artistGroups.map((group) => {
+            // Показываем до 3 ближайших концертов
+            const preview = group.concerts.slice(0, 3);
+            const remaining = group.concerts.length - preview.length;
+
             return (
-              <a
-                key={concert.id}
-                href={`/concert/${concert.id}`}
-                className="block bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden hover:border-zinc-600 transition-all"
-              >
-                <div className="flex gap-4 p-4">
-                  {concert.artist.imageUrl ? (
-                    <Image
-                      src={concert.artist.imageUrl}
-                      alt={concert.artist.name}
-                      width={64}
-                      height={64}
-                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                      unoptimized
-                    />
+              <div key={group.slug}
+                className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden hover:border-zinc-600 transition-all">
+                {/* Шапка артиста */}
+                <div className="flex gap-4 p-4 pb-2">
+                  {group.imageUrl ? (
+                    <Image src={group.imageUrl} alt={group.artistName}
+                      width={56} height={56}
+                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0" unoptimized />
                   ) : (
-                    <div className="w-16 h-16 rounded-lg bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-xl">
-                      ♪
-                    </div>
+                    <div className="w-14 h-14 rounded-lg bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-xl">♪</div>
                   )}
                   <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{concert.artist.name}</h3>
-                    <p className="text-sm text-zinc-400">
-                      {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                    <p className="text-sm text-zinc-500 truncate">{concert.city}, {concert.venue}</p>
+                    <h3 className="font-semibold truncate">{group.artistName}</h3>
+                    <p className="text-xs text-zinc-500">{group.genre}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">{group.concerts.length} {
+                      group.concerts.length === 1 ? "концерт" :
+                      group.concerts.length < 5 ? "концерта" : "концертов"
+                    }</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 px-4 pb-4">
-                  {/* Визовый тег — всегда показываем */}
-                  {visa && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      isVisaFree(visa)
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-red-500/15 text-red-400"
-                    }`}>
-                      {visaStatusLabels[visa]}
-                    </span>
-                  )}
-                  {/* Тег рейса — всегда показываем, даже если нет данных */}
-                  {flight ? (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      flight.direct
-                        ? "bg-blue-500/20 text-blue-400"
-                        : "bg-amber-500/15 text-amber-400"
-                    }`}>
-                      {flight.direct ? "Прямой рейс" : "С пересадкой"}
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500">
-                      Рейсы не найдены
-                    </span>
-                  )}
-                  {/* Цена перелёта */}
-                  {flight && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-                      ~{flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽
-                    </span>
-                  )}
+
+                {/* Ближайшие концерты */}
+                <div className="px-4 pb-3 space-y-1.5">
+                  {preview.map(({ concert, visa, flight }) => (
+                    <a key={concert.id} href={`/concert/${concert.id}`}
+                      className="flex items-center justify-between gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-zinc-800/50 transition-colors group">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate group-hover:text-orange-400 transition-colors">
+                          {concert.city}{concert.country ? `, ${concert.country}` : ""}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                          {" · "}
+                          {concert.venue}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        {visa && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            isVisaFree(visa)
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : "bg-red-500/15 text-red-400"
+                          }`}>
+                            {visaStatusLabels[visa]}
+                          </span>
+                        )}
+                        {flight ? (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            flight.direct ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/15 text-amber-400"
+                          }`}>
+                            {flight.direct ? "Прямой" : "Пересадка"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </a>
+                  ))}
                 </div>
-              </a>
+
+                {/* Ссылка на все концерты артиста */}
+                {remaining > 0 && (
+                  <a href={`/artist/${group.slug}`}
+                    className="block text-center text-xs text-orange-400 hover:text-orange-300 py-2.5 border-t border-zinc-800 transition-colors">
+                    ещё {remaining} {remaining === 1 ? "концерт" : remaining < 5 ? "концерта" : "концертов"} →
+                  </a>
+                )}
+              </div>
             );
           })}
         </div>
-        {!loading && concerts.length === 0 && (
+
+        {!loading && artistGroups.length === 0 && (
           <p className="text-center text-zinc-500 py-12">
             {searchQuery ? `Артист «${searchQuery}» не найден` : "Концертов по выбранным фильтрам не найдено"}
           </p>

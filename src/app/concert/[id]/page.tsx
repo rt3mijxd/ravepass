@@ -1,12 +1,11 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Image from "next/image";
-import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, VISA_LAST_UPDATED } from "@/data/visas";
 import { findFlightRoute, getAviasalesUrl, cityNames } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
-import type { PassportCode, CityCode } from "@/types";
+import type { PassportCode, CityCode, Concert } from "@/types";
 
 const passportOptions = [
   { value: "RU", label: "Российский" },
@@ -25,10 +24,26 @@ const cityOptions = [
 
 export default function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const concert = mockConcerts.find((c) => c.id === id);
-
+  const [concert, setConcert] = useState<Concert | null>(null);
+  const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState<PassportCode>("RU");
   const [originCity, setOriginCity] = useState<CityCode>("MOW");
+
+  useEffect(() => {
+    fetch(`/api/concert/${id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setConcert(data))
+      .catch(() => setConcert(null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 flex justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-600 border-t-orange-500" />
+      </div>
+    );
+  }
 
   if (!concert) {
     return (
@@ -63,7 +78,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
           <h1 className="text-2xl font-bold">{concert.artist.name}</h1>
           <p className="text-zinc-400 mt-1">{dateFormatted}</p>
           <p className="text-zinc-500">{concert.city}, {concert.venue}</p>
-          <p className="text-xs text-zinc-600 mt-1">{concert.artist.genre}</p>
+          {concert.artist.genre && <p className="text-xs text-zinc-600 mt-1">{concert.artist.genre}</p>}
         </div>
       </div>
 
@@ -86,20 +101,25 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
               </p>
             </div>
           )}
-          {flight && (
-            <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
+          {flight ? (
+            <>
+              <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
+                <p className="text-xs text-zinc-400">Перелёт</p>
+                <p className="font-medium text-sm">
+                  {flight.direct ? "Прямой" : "С пересадкой"}, ~{flight.flightTimeHours}ч
+                </p>
+              </div>
+              <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
+                <p className="text-xs text-zinc-400">Перелёт от</p>
+                <p className="font-medium text-sm">
+                  {flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700 col-span-2">
               <p className="text-xs text-zinc-400">Перелёт</p>
-              <p className="font-medium text-sm">
-                {flight.direct ? "Прямой" : "С пересадкой"}, ~{flight.flightTimeHours}ч
-              </p>
-            </div>
-          )}
-          {flight && (
-            <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
-              <p className="text-xs text-zinc-400">Перелёт от</p>
-              <p className="font-medium text-sm">
-                {flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽
-              </p>
+              <p className="font-medium text-sm text-zinc-500">Нет данных о прямых рейсах из {cityNames[originCity]}</p>
             </div>
           )}
         </div>

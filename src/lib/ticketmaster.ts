@@ -189,7 +189,7 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
 
   for (const batch of artistBatches) {
     const results = await Promise.allSettled(
-      batch.map((name) => searchEventsByArtist(name, { size: 20 }))
+      batch.map((name) => searchEventsByArtist(name, { size: 50 }))
     );
     for (const result of results) {
       if (result.status === "fulfilled") {

@@ -3,35 +3,21 @@
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
-import { getVisaStatus, isVisaFree, visaStatusLabels, countryNames } from "@/data/visas";
-import { findFlightRoute, cityNames } from "@/data/flights";
+import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
+import { findFlightRoute } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
-import { pluralize } from "@/lib/pluralize";
+import { useSettings } from "@/components/SettingsContext";
+import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
 import type { PassportCode, CityCode, Concert, VisaStatus } from "@/types";
 import type { FlightRoute } from "@/types";
 
-const passportOptions = [
-  { value: "RU", label: "Российский" },
-  { value: "AM", label: "Армянский" },
-  { value: "GE", label: "Грузинский" },
-  { value: "KZ", label: "Казахстанский" },
-];
-
-const cityOptions = [
-  { value: "MOW", label: "Москва" },
-  { value: "LED", label: "Санкт-Петербург" },
-  { value: "ALA", label: "Алматы" },
-  { value: "EVN", label: "Ереван" },
-  { value: "TBS", label: "Тбилиси" },
-];
-
 const popularDestinations = [
-  { city: "Стамбул", countryCode: "TR", emoji: "🇹🇷" },
-  { city: "Дубай", countryCode: "AE", emoji: "🇦🇪" },
-  { city: "Белград", countryCode: "RS", emoji: "🇷🇸" },
-  { city: "Тбилиси", countryCode: "GE", emoji: "🇬🇪" },
-  { city: "Ереван", countryCode: "AM", emoji: "🇦🇲" },
-  { city: "Алматы", countryCode: "KZ", emoji: "🇰🇿" },
+  { city: "Стамбул", cityEn: "Istanbul", countryCode: "TR", emoji: "🇹🇷" },
+  { city: "Дубай", cityEn: "Dubai", countryCode: "AE", emoji: "🇦🇪" },
+  { city: "Белград", cityEn: "Belgrade", countryCode: "RS", emoji: "🇷🇸" },
+  { city: "Тбилиси", cityEn: "Tbilisi", countryCode: "GE", emoji: "🇬🇪" },
+  { city: "Ереван", cityEn: "Yerevan", countryCode: "AM", emoji: "🇦🇲" },
+  { city: "Алматы", cityEn: "Almaty", countryCode: "KZ", emoji: "🇰🇿" },
 ];
 
 interface EnrichedConcert {
@@ -49,6 +35,7 @@ interface ArtistGroup {
 }
 
 export default function HomePage() {
+  const { lang, currency } = useSettings();
   const [allConcerts, setAllConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,6 +46,21 @@ export default function HomePage() {
   const [countryFilter, setCountryFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
 
+  const passportOptions = useMemo(() => [
+    { value: "RU", label: t("passport.RU", lang) },
+    { value: "AM", label: t("passport.AM", lang) },
+    { value: "GE", label: t("passport.GE", lang) },
+    { value: "KZ", label: t("passport.KZ", lang) },
+  ], [lang]);
+
+  const cityOptions = useMemo(() => [
+    { value: "MOW", label: t("city.MOW", lang) },
+    { value: "LED", label: t("city.LED", lang) },
+    { value: "ALA", label: t("city.ALA", lang) },
+    { value: "EVN", label: t("city.EVN", lang) },
+    { value: "TBS", label: t("city.TBS", lang) },
+  ], [lang]);
+
   useEffect(() => {
     fetch("/api/concerts")
       .then((res) => res.json())
@@ -66,7 +68,6 @@ export default function HomePage() {
         if (Array.isArray(data) && data.length > 0) {
           setAllConcerts(data);
         } else {
-          // Фолбэк: если API не вернул данных, показываем моковые
           setAllConcerts(mockConcerts);
         }
       })
@@ -82,15 +83,13 @@ export default function HomePage() {
   }, [allConcerts]);
 
   const countryOptions = useMemo(() => [
-    { value: "", label: "Все страны" },
+    { value: "", label: t("filter.all_countries", lang) },
     ...availableCountries.map((code) => ({ value: code, label: countryNames[code] ?? code })),
-  ], [availableCountries]);
+  ], [availableCountries, lang]);
 
-  // Группируем концерты по артисту
   const artistGroups = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    // Фильтруем и обогащаем
     const filtered = allConcerts
       .map((concert) => ({
         concert,
@@ -107,7 +106,6 @@ export default function HomePage() {
         return true;
       });
 
-    // Группируем по slug артиста
     const groupMap = new Map<string, ArtistGroup>();
 
     for (const item of filtered) {
@@ -124,16 +122,17 @@ export default function HomePage() {
       groupMap.get(slug)!.concerts.push(item);
     }
 
-    // Сортируем концерты внутри каждой группы по дате
     for (const group of groupMap.values()) {
       group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
     }
 
-    // Сортируем группы: больше концертов = выше
     return Array.from(groupMap.values()).sort((a, b) => b.concerts.length - a.concerts.length);
   }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
 
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
+
+  // Локализованные визовые лейблы
+  const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
@@ -146,7 +145,7 @@ export default function HomePage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Найти артиста..."
+          placeholder={t("search.placeholder", lang)}
           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
         {searchQuery && (
@@ -160,11 +159,11 @@ export default function HomePage() {
       {/* Фильтры */}
       <section className="bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-800 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <CustomSelect label="Паспорт" options={passportOptions} value={passport}
+          <CustomSelect label={t("filter.passport", lang)} options={passportOptions} value={passport}
             onChange={(v) => setPassport(v as PassportCode)} />
-          <CustomSelect label="Город вылета" options={cityOptions} value={originCity}
+          <CustomSelect label={t("filter.origin_city", lang)} options={cityOptions} value={originCity}
             onChange={(v) => setOriginCity(v as CityCode)} />
-          <CustomSelect label="Страна" options={countryOptions} value={countryFilter}
+          <CustomSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
             onChange={setCountryFilter} />
           <div className="flex flex-col justify-end gap-2">
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -174,7 +173,7 @@ export default function HomePage() {
                 <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
                 <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
               </div>
-              Без визы
+              {t("filter.visa_free", lang)}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <div className="relative">
@@ -183,7 +182,7 @@ export default function HomePage() {
                 <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
                 <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
               </div>
-              Прямые рейсы
+              {t("filter.direct_flights", lang)}
             </label>
           </div>
         </div>
@@ -191,7 +190,7 @@ export default function HomePage() {
 
       {/* Популярные направления */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Популярные направления</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("section.popular", lang)}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {popularDestinations.map((dest) => (
             <button
@@ -207,7 +206,7 @@ export default function HomePage() {
               }`}
             >
               <span className="text-lg mr-2">{dest.emoji}</span>
-              {dest.city}
+              {lang === "en" ? dest.cityEn : dest.city}
             </button>
           ))}
         </div>
@@ -216,9 +215,9 @@ export default function HomePage() {
       {/* Список артистов с концертами */}
       <section>
         <h2 className="text-lg font-semibold mb-3">
-          Концерты{" "}
+          {t("section.concerts", lang)}{" "}
           <span className="text-zinc-500 font-normal text-sm">
-            ({loading ? "..." : `${totalConcerts} ${pluralize(totalConcerts, "событие", "события", "событий")}, ${artistGroups.length} ${pluralize(artistGroups.length, "артист", "артиста", "артистов")}`})
+            ({loading ? "..." : `${totalConcerts} ${pluralizeI18n(totalConcerts, lang, "событие", "события", "событий", "event", "events")}, ${artistGroups.length} ${pluralizeI18n(artistGroups.length, lang, "артист", "артиста", "артистов", "artist", "artists")}`})
           </span>
         </h2>
 
@@ -230,7 +229,6 @@ export default function HomePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {artistGroups.map((group) => {
-            // Показываем до 3 ближайших концертов, приоритет — безвизовым
             const visaFreeConcerts = group.concerts.filter(({ visa }) => visa && isVisaFree(visa));
             const visaRequiredConcerts = group.concerts.filter(({ visa }) => !visa || !isVisaFree(visa));
             const sorted = [...visaFreeConcerts, ...visaRequiredConcerts];
@@ -254,15 +252,15 @@ export default function HomePage() {
                     <h3 className="font-semibold truncate">{group.artistName}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-zinc-500">
-                        {group.concerts.length} {pluralize(group.concerts.length, "концерт", "концерта", "концертов")}
+                        {group.concerts.length} {pluralizeI18n(group.concerts.length, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
                       </span>
                       {hasVisaFree ? (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                          Есть без визы
+                          {t("visa.has_visa_free", lang)}
                         </span>
                       ) : (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400">
-                          Нужна виза
+                          {t("visa.needs_visa", lang)}
                         </span>
                       )}
                     </div>
@@ -279,7 +277,7 @@ export default function HomePage() {
                           {concert.city}{concert.country ? `, ${concert.country}` : ""}
                         </p>
                         <p className="text-xs text-zinc-500">
-                          {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                          {new Date(concert.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
                           {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
                           {" · "}
                           {concert.venue}
@@ -292,14 +290,14 @@ export default function HomePage() {
                               ? "bg-emerald-500/20 text-emerald-400"
                               : "bg-red-500/15 text-red-400"
                           }`}>
-                            {visaStatusLabels[visa]}
+                            {visaLabel(visa)}
                           </span>
                         )}
                         {flight ? (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                             flight.direct ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/15 text-amber-400"
                           }`}>
-                            {flight.direct ? "Прямой" : "Пересадка"}
+                            {flight.direct ? t("flight.direct", lang) : t("flight.connection", lang)}
                           </span>
                         ) : null}
                       </div>
@@ -311,7 +309,7 @@ export default function HomePage() {
                 {remaining > 0 && (
                   <a href={`/artist/${group.slug}`}
                     className="block text-center text-xs text-orange-400 hover:text-orange-300 py-2.5 border-t border-zinc-800 transition-colors">
-                    ещё {remaining} {pluralize(remaining, "концерт", "концерта", "концертов")} →
+                    {t("nav.more", lang)} {remaining} {pluralizeI18n(remaining, lang, "концерт", "концерта", "концертов", "concert", "concerts")} →
                   </a>
                 )}
               </div>
@@ -321,7 +319,9 @@ export default function HomePage() {
 
         {!loading && artistGroups.length === 0 && (
           <p className="text-center text-zinc-500 py-12">
-            {searchQuery ? `Артист «${searchQuery}» не найден` : "Концертов по выбранным фильтрам не найдено"}
+            {searchQuery
+              ? (lang === "ru" ? `Артист «${searchQuery}» не найден` : `Artist "${searchQuery}" not found`)
+              : t("empty.no_concerts", lang)}
           </p>
         )}
       </section>

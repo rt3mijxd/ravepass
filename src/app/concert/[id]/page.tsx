@@ -2,32 +2,35 @@
 
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
-import { getVisaStatus, isVisaFree, visaStatusLabels, VISA_LAST_UPDATED } from "@/data/visas";
-import { findFlightRoute, getAviasalesUrl, cityNames } from "@/data/flights";
+import { getVisaStatus, isVisaFree, VISA_LAST_UPDATED } from "@/data/visas";
+import { findFlightRoute, getAviasalesUrl } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
+import { useSettings } from "@/components/SettingsContext";
+import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
 import type { PassportCode, CityCode, Concert } from "@/types";
-
-const passportOptions = [
-  { value: "RU", label: "Российский" },
-  { value: "AM", label: "Армянский" },
-  { value: "GE", label: "Грузинский" },
-  { value: "KZ", label: "Казахстанский" },
-];
-
-const cityOptions = [
-  { value: "MOW", label: "Москва" },
-  { value: "LED", label: "Санкт-Петербург" },
-  { value: "ALA", label: "Алматы" },
-  { value: "EVN", label: "Ереван" },
-  { value: "TBS", label: "Тбилиси" },
-];
 
 export default function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { lang, currency } = useSettings();
   const [concert, setConcert] = useState<Concert | null>(null);
   const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState<PassportCode>("RU");
   const [originCity, setOriginCity] = useState<CityCode>("MOW");
+
+  const passportOptions = [
+    { value: "RU", label: t("passport.RU", lang) },
+    { value: "AM", label: t("passport.AM", lang) },
+    { value: "GE", label: t("passport.GE", lang) },
+    { value: "KZ", label: t("passport.KZ", lang) },
+  ];
+
+  const cityOptions = [
+    { value: "MOW", label: t("city.MOW", lang) },
+    { value: "LED", label: t("city.LED", lang) },
+    { value: "ALA", label: t("city.ALA", lang) },
+    { value: "EVN", label: t("city.EVN", lang) },
+    { value: "TBS", label: t("city.TBS", lang) },
+  ];
 
   useEffect(() => {
     fetch(`/api/concert/${id}`)
@@ -48,22 +51,33 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
   if (!concert) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">Концерт не найден</h1>
-        <a href="/" className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">← На главную</a>
+        <h1 className="text-2xl font-bold mb-4">{t("concert.not_found", lang)}</h1>
+        <a href="/" className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">
+          {t("nav.back_home", lang)}
+        </a>
       </div>
     );
   }
 
   const visa = getVisaStatus(concert.countryCode, passport);
   const flight = findFlightRoute(originCity, concert.city);
-  const dateFormatted = new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
+  const dateFormatted = new Date(concert.date + "T12:00:00").toLocaleDateString(
+    lang === "ru" ? "ru-RU" : "en-US",
+    { weekday: "long", day: "numeric", month: "long", year: "numeric" },
+  );
+
+  // Конвертация цен
+  const ticketMin = concert.priceMin != null ? convertPrice(concert.priceMin, concert.currency ?? "USD", currency) : null;
+  const ticketMax = concert.priceMax != null ? convertPrice(concert.priceMax, concert.currency ?? "USD", currency) : null;
+  const flightMin = flight ? convertPrice(flight.priceRange[0], "RUB", currency) : null;
+  const flightMax = flight ? convertPrice(flight.priceRange[1], "RUB", currency) : null;
+
+  const originCityName = cityOptions.find((c) => c.value === originCity)?.label ?? originCity;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-orange-400 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
-        ← Все концерты
+        {t("nav.back_all", lang)}
       </a>
 
       {/* Шапка */}
@@ -87,42 +101,42 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
       {/* Настройки поездки */}
       <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
-        <h2 className="font-semibold">Ваша поездка</h2>
+        <h2 className="font-semibold">{t("concert.your_trip", lang)}</h2>
         <div className="grid grid-cols-2 gap-3">
-          <CustomSelect label="Паспорт" options={passportOptions} value={passport}
+          <CustomSelect label={t("filter.passport", lang)} options={passportOptions} value={passport}
             onChange={(v) => setPassport(v as PassportCode)} />
-          <CustomSelect label="Город вылета" options={cityOptions} value={originCity}
+          <CustomSelect label={t("filter.origin_city", lang)} options={cityOptions} value={originCity}
             onChange={(v) => setOriginCity(v as CityCode)} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
           {visa && (
             <div className={`rounded-lg p-3 ${isVisaFree(visa) ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
-              <p className="text-xs text-zinc-400">Виза</p>
+              <p className="text-xs text-zinc-400">{t("concert.visa", lang)}</p>
               <p className={`font-medium text-sm ${isVisaFree(visa) ? "text-emerald-400" : "text-red-400"}`}>
-                {visaStatusLabels[visa]}
+                {t(`visa.${visa}` as Parameters<typeof t>[0], lang)}
               </p>
             </div>
           )}
           {flight ? (
             <>
               <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
-                <p className="text-xs text-zinc-400">Перелёт</p>
+                <p className="text-xs text-zinc-400">{t("concert.flight", lang)}</p>
                 <p className="font-medium text-sm">
-                  {flight.direct ? "Прямой" : "С пересадкой"}, ~{flight.flightTimeHours}ч
+                  {flight.direct ? t("flight.direct_full", lang) : t("flight.connection_full", lang)}, ~{flight.flightTimeHours}{t("unit.h", lang)}
                 </p>
               </div>
               <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
-                <p className="text-xs text-zinc-400">Перелёт от</p>
+                <p className="text-xs text-zinc-400">{t("concert.flight_from", lang)}</p>
                 <p className="font-medium text-sm">
-                  {flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽
+                  {formatPrice(flightMin!, currency, lang)}–{formatPrice(flightMax!, currency, lang)}
                 </p>
               </div>
             </>
           ) : (
             <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700 col-span-2">
-              <p className="text-xs text-zinc-400">Перелёт</p>
-              <p className="font-medium text-sm text-zinc-500">Нет данных о прямых рейсах из {cityNames[originCity]}</p>
+              <p className="text-xs text-zinc-400">{t("concert.flight", lang)}</p>
+              <p className="font-medium text-sm text-zinc-500">{t("flight.no_data", lang)} {originCityName}</p>
             </div>
           )}
         </div>
@@ -130,35 +144,28 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
       {/* Примерный бюджет */}
       <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-3">
-        <h2 className="font-semibold">Примерный бюджет</h2>
+        <h2 className="font-semibold">{t("concert.budget", lang)}</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-zinc-400">Билет на концерт</span>
-            {concert.priceMin != null && concert.priceMax != null ? (
-              <span>
-                {concert.priceMin.toLocaleString("ru")}–{concert.priceMax.toLocaleString("ru")} {concert.currency ?? "USD"}
-              </span>
+            <span className="text-zinc-400">{t("concert.ticket", lang)}</span>
+            {ticketMin != null && ticketMax != null ? (
+              <span>{formatPrice(ticketMin, currency, lang)}–{formatPrice(ticketMax, currency, lang)}</span>
             ) : (
-              <span className="text-zinc-500">Цена уточняется</span>
+              <span className="text-zinc-500">{t("concert.price_tbd", lang)}</span>
             )}
           </div>
-          {flight && (
+          {flightMin != null && flightMax != null && (
             <div className="flex justify-between">
-              <span className="text-zinc-400">Перелёт ({cityNames[originCity]} → {concert.city})</span>
-              <span>{flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽</span>
+              <span className="text-zinc-400">{t("concert.flight", lang)} ({originCityName} → {concert.city})</span>
+              <span>{formatPrice(flightMin, currency, lang)}–{formatPrice(flightMax, currency, lang)}</span>
             </div>
           )}
           <hr className="border-zinc-800" />
-          {(concert.priceMin != null || flight) && (
+          {(ticketMin != null || flightMin != null) && (
             <div className="flex justify-between font-medium">
-              <span>Итого от</span>
+              <span>{t("concert.total_from", lang)}</span>
               <span>
-                {concert.priceMin != null && flight
-                  ? `${((flight.priceRange[0]) + concert.priceMin).toLocaleString("ru")} ${concert.currency ?? "USD"} + ₽`
-                  : concert.priceMin != null
-                    ? `${concert.priceMin.toLocaleString("ru")} ${concert.currency ?? "USD"}`
-                    : `${flight!.priceRange[0].toLocaleString("ru")} ₽ + билет`
-                }
+                {formatPrice((ticketMin ?? 0) + (flightMin ?? 0), currency, lang)}
               </span>
             </div>
           )}
@@ -169,22 +176,22 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       <div className="flex flex-col sm:flex-row gap-3">
         <a href={concert.ticketUrl} target="_blank" rel="noopener noreferrer"
           className="flex-1 text-center bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-xl transition-colors">
-          Купить билеты
+          {t("concert.buy_tickets", lang)}
         </a>
         <a href={getAviasalesUrl(originCity, concert.city, concert.date)} target="_blank" rel="noopener noreferrer"
           className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-medium py-3 rounded-xl transition-colors">
-          Найти авиабилеты
+          {t("concert.find_flights", lang)}
         </a>
       </div>
 
       <p className="text-xs text-zinc-600 text-center">
-        Визовая информация актуальна на {VISA_LAST_UPDATED}. Проверяйте официальные источники перед поездкой.
+        {t("concert.visa_updated", lang)} {VISA_LAST_UPDATED}.
       </p>
 
       <div className="text-center">
         <a href={`/artist/${concert.artist.slug}`}
           className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">
-          Все концерты {concert.artist.name} →
+          {t("concert.all_concerts_by", lang)} {concert.artist.name} →
         </a>
       </div>
     </div>

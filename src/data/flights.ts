@@ -59,12 +59,17 @@ export const flightRoutes: FlightRoute[] = [
 ];
 
 const cityToAirport: Record<string, string> = {
+  // Русские названия
   "Стамбул": "IST", "Дубай": "DXB", "Белград": "BEG", "Тбилиси": "TBS",
   "Ереван": "EVN", "Алматы": "ALA", "Бангкок": "BKK", "Тель-Авив": "TLV",
   "Пекин": "PEK", "Доха": "DOH", "Сеул": "SEL",
-  "Istanbul": "IST", "Dubai": "DXB", "Belgrade": "BEG", "Tbilisi": "TBS",
-  "Yerevan": "EVN", "Almaty": "ALA", "Bangkok": "BKK", "Tel Aviv": "TLV",
-  "Beijing": "PEK", "Doha": "DOH", "Seoul": "SEL",
+  // Английские названия (Ticketmaster возвращает на английском)
+  "Istanbul": "IST", "İstanbul": "IST", "Dubai": "DXB", "Belgrade": "BEG",
+  "Tbilisi": "TBS", "Yerevan": "EVN", "Almaty": "ALA", "Bangkok": "BKK",
+  "Tel Aviv": "TLV", "Tel Aviv-Yafo": "TLV", "Beijing": "PEK", "Doha": "DOH",
+  "Seoul": "SEL", "Abu Dhabi": "DXB",
+  // Турция — другие города через Стамбул
+  "Ankara": "IST", "Antalya": "IST", "Izmir": "IST",
 };
 
 export function findFlightRoute(origin: CityCode, destinationCity: string): FlightRoute | null {

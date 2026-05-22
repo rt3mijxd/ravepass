@@ -84,6 +84,15 @@ function parseTMEvent(event: TMEvent): Concert | null {
   const artistName = attraction?.name ?? event.name;
   const artistImage = pickImage(attraction?.images) || pickImage(event.images);
 
+  // Извлекаем время начала
+  const time = event.dates.start.localTime ?? undefined;
+
+  // Извлекаем цены билетов
+  const priceRange = event.priceRanges?.[0];
+  const priceMin = priceRange?.min ?? undefined;
+  const priceMax = priceRange?.max ?? undefined;
+  const currency = priceRange?.currency ?? undefined;
+
   return {
     id: `tm-${event.id}`,
     artist: {
@@ -93,6 +102,10 @@ function parseTMEvent(event: TMEvent): Concert | null {
       genre: genre === "Undefined" ? "" : genre,
     },
     date,
+    time,
+    priceMin,
+    priceMax,
+    currency,
     venue: venue?.name ?? "",
     city,
     country: countryRuNames[countryCode] ?? venue?.country?.name ?? "",
@@ -144,7 +157,7 @@ export async function searchEventsByArtist(
 ): Promise<Concert[]> {
   if (!API_KEY) return [];
 
-  const { size = 50 } = options;
+  const { size = 200 } = options;
   const params = new URLSearchParams({
     apikey: API_KEY,
     keyword: artistName,
@@ -208,7 +221,7 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
 
   const countryResults = await Promise.allSettled(
     visaFreeCountries.map((code) =>
-      searchEventsByCountry(code, { size: 15, sort: "relevance,desc" })
+      searchEventsByCountry(code, { size: 50, sort: "relevance,desc" })
     )
   );
 
@@ -223,8 +236,18 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
     }
   }
 
-  // 3. Сортировка: топовые артисты первыми, потом по дате
-  return allConcerts.sort((a, b) => {
+  // 3. Дедупликация: убираем концерты с одинаковым артистом, городом и датой
+  const dedupMap = new Map<string, Concert>();
+  for (const c of allConcerts) {
+    const key = `${c.artist.slug}|${c.city}|${c.date}`;
+    if (!dedupMap.has(key)) {
+      dedupMap.set(key, c);
+    }
+  }
+  const deduped = Array.from(dedupMap.values());
+
+  // 4. Сортировка: топовые артисты первыми, потом по дате
+  return deduped.sort((a, b) => {
     const aTop = topArtistSet.has(a.artist.name.toLowerCase()) ? 0 : 1;
     const bTop = topArtistSet.has(b.artist.name.toLowerCase()) ? 0 : 1;
     if (aTop !== bTop) return aTop - bTop;

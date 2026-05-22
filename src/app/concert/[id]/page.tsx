@@ -76,7 +76,10 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
         )}
         <div>
           <h1 className="text-2xl font-bold">{concert.artist.name}</h1>
-          <p className="text-zinc-400 mt-1">{dateFormatted}</p>
+          <p className="text-zinc-400 mt-1">
+            {dateFormatted}
+            {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
+          </p>
           <p className="text-zinc-500">{concert.city}, {concert.venue}</p>
           {concert.artist.genre && <p className="text-xs text-zinc-600 mt-1">{concert.artist.genre}</p>}
         </div>
@@ -131,7 +134,13 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-zinc-400">Билет на концерт</span>
-            <span>3 000–15 000 ₽</span>
+            {concert.priceMin != null && concert.priceMax != null ? (
+              <span>
+                {concert.priceMin.toLocaleString("ru")}–{concert.priceMax.toLocaleString("ru")} {concert.currency ?? "USD"}
+              </span>
+            ) : (
+              <span className="text-zinc-500">Цена уточняется</span>
+            )}
           </div>
           {flight && (
             <div className="flex justify-between">
@@ -140,10 +149,19 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
             </div>
           )}
           <hr className="border-zinc-800" />
-          <div className="flex justify-between font-medium">
-            <span>Итого от</span>
-            <span>{((flight?.priceRange[0] ?? 0) + 3000).toLocaleString("ru")} ₽</span>
-          </div>
+          {(concert.priceMin != null || flight) && (
+            <div className="flex justify-between font-medium">
+              <span>Итого от</span>
+              <span>
+                {concert.priceMin != null && flight
+                  ? `${((flight.priceRange[0]) + concert.priceMin).toLocaleString("ru")} ${concert.currency ?? "USD"} + ₽`
+                  : concert.priceMin != null
+                    ? `${concert.priceMin.toLocaleString("ru")} ${concert.currency ?? "USD"}`
+                    : `${flight!.priceRange[0].toLocaleString("ru")} ₽ + билет`
+                }
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

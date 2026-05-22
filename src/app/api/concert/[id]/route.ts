@@ -51,6 +51,10 @@ export async function GET(
     const img = images.find((i: { width: number }) => i.width >= 200 && i.width <= 800);
     const genre = attraction?.classifications?.[0]?.genre?.name;
 
+    // Извлекаем время и цены
+    const time = event.dates?.start?.localTime ?? undefined;
+    const priceRange = event.priceRanges?.[0];
+
     const concert = {
       id,
       artist: {
@@ -60,6 +64,10 @@ export async function GET(
         genre: genre === "Undefined" ? "" : (genre ?? ""),
       },
       date: event.dates?.start?.localDate ?? "",
+      time,
+      priceMin: priceRange?.min ?? undefined,
+      priceMax: priceRange?.max ?? undefined,
+      currency: priceRange?.currency ?? undefined,
       venue: venue?.name ?? "",
       city: venue?.city?.name ?? "",
       country: countryRu[countryCode] ?? venue?.country?.name ?? "",

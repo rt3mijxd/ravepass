@@ -49,7 +49,7 @@ interface ArtistGroup {
 }
 
 export default function HomePage() {
-  const [allConcerts, setAllConcerts] = useState<Concert[]>(mockConcerts);
+  const [allConcerts, setAllConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [passport, setPassport] = useState<PassportCode>("RU");
@@ -65,9 +65,14 @@ export default function HomePage() {
       .then((data: Concert[]) => {
         if (Array.isArray(data) && data.length > 0) {
           setAllConcerts(data);
+        } else {
+          // Фолбэк: если API не вернул данных, показываем моковые
+          setAllConcerts(mockConcerts);
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setAllConcerts(mockConcerts);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -275,6 +280,7 @@ export default function HomePage() {
                         </p>
                         <p className="text-xs text-zinc-500">
                           {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                          {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
                           {" · "}
                           {concert.venue}
                         </p>

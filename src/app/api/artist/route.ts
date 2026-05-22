@@ -9,7 +9,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const concerts = await searchEventsByArtist(name);
+    const rawConcerts = await searchEventsByArtist(name);
+
+    // Дедупликация: убираем концерты с одинаковым городом и датой
+    const dedupMap = new Map<string, typeof rawConcerts[0]>();
+    for (const c of rawConcerts) {
+      const key = `${c.city}|${c.date}`;
+      if (!dedupMap.has(key)) {
+        dedupMap.set(key, c);
+      }
+    }
+    const concerts = Array.from(dedupMap.values());
 
     return NextResponse.json({
       artist: concerts.length > 0

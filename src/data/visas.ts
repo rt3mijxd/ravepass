@@ -67,6 +67,25 @@ export const visaData: Record<string, Record<PassportCode, VisaStatus>> = {
   // Азия
   JP: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },
   SG: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },
+
+  // Дополнительные страны (часто встречаются в Ticketmaster)
+  IE: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Ирландия
+  NZ: { RU: "visa_required", AM: "visa_required", GE: "visa_required", KZ: "visa_required" },  // Новая Зеландия
+  ZA: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },  // ЮАР
+  CL: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },  // Чили
+  CO: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },  // Колумбия
+  PE: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },  // Перу
+  HR: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Хорватия
+  RO: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Румыния
+  BG: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Болгария
+  SK: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Словакия
+  SI: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Словения
+  LT: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Литва
+  LV: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Латвия
+  EE: { RU: "visa_required", AM: "visa_required", GE: "visa_free", KZ: "visa_required" },  // Эстония
+  PH: { RU: "visa_free", AM: "visa_free", GE: "visa_free", KZ: "visa_free" },  // Филиппины
+  TW: { RU: "visa_required", AM: "visa_required", GE: "visa_required", KZ: "visa_required" },  // Тайвань
+  IN: { RU: "evisa", AM: "evisa", GE: "evisa", KZ: "evisa" },  // Индия
 };
 
 export const countryNames: Record<string, string> = {
@@ -84,6 +103,10 @@ export const countryNames: Record<string, string> = {
   NO: "Норвегия", DK: "Дания", BE: "Бельгия", GR: "Греция",
   HU: "Венгрия", GB: "Великобритания", US: "США", CA: "Канада",
   AU: "Австралия", JP: "Япония", SG: "Сингапур",
+  IE: "Ирландия", NZ: "Новая Зеландия", ZA: "ЮАР", CL: "Чили",
+  CO: "Колумбия", PE: "Перу", HR: "Хорватия", RO: "Румыния",
+  BG: "Болгария", SK: "Словакия", SI: "Словения", LT: "Литва",
+  LV: "Латвия", EE: "Эстония", PH: "Филиппины", TW: "Тайвань", IN: "Индия",
 };
 
 export const visaStatusLabels: Record<VisaStatus, string> = {

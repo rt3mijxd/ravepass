@@ -169,8 +169,14 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
                   <p className="font-medium">{concert.city}{concert.country ? `, ${concert.country}` : ""}</p>
                   <p className="text-sm text-zinc-400">
                     {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                    {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
                   </p>
                   <p className="text-sm text-zinc-500">{concert.venue}</p>
+                  {concert.priceMin != null && (
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      от {concert.priceMin.toLocaleString("ru")} {concert.currency ?? "USD"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   {visa && (

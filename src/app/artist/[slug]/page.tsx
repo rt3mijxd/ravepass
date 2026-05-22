@@ -4,11 +4,24 @@ import { use, useState, useMemo } from "react";
 import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels } from "@/data/visas";
-import { findFlightRoute, cityNames, passportNames } from "@/data/flights";
+import { findFlightRoute } from "@/data/flights";
+import CustomSelect from "@/components/CustomSelect";
 import type { PassportCode, CityCode } from "@/types";
 
-const passports: PassportCode[] = ["RU", "AM", "GE", "KZ"];
-const cities: CityCode[] = ["MOW", "LED", "ALA", "EVN", "TBS"];
+const passportOptions = [
+  { value: "RU", label: "Российский" },
+  { value: "AM", label: "Армянский" },
+  { value: "GE", label: "Грузинский" },
+  { value: "KZ", label: "Казахстанский" },
+];
+
+const cityOptions = [
+  { value: "MOW", label: "Москва" },
+  { value: "LED", label: "Санкт-Петербург" },
+  { value: "ALA", label: "Алматы" },
+  { value: "EVN", label: "Ереван" },
+  { value: "TBS", label: "Тбилиси" },
+];
 
 export default function ArtistPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -44,8 +57,12 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
       {/* Профиль артиста */}
       <div className="flex gap-5 items-start">
-        <Image src={artist.imageUrl} alt={artist.name}
-          width={96} height={96} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+        {artist.imageUrl ? (
+          <Image src={artist.imageUrl} alt={artist.name}
+            width={96} height={96} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" unoptimized />
+        ) : (
+          <div className="w-24 h-24 rounded-xl bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-3xl">♪</div>
+        )}
         <div>
           <h1 className="text-2xl font-bold">{artist.name}</h1>
           <p className="text-zinc-500 text-sm">{artist.genre}</p>
@@ -54,20 +71,10 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
       {/* Настройки */}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Паспорт</label>
-          <select value={passport} onChange={(e) => setPassport(e.target.value as PassportCode)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-            {passports.map((p) => <option key={p} value={p}>{passportNames[p]}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Город вылета</label>
-          <select value={originCity} onChange={(e) => setOriginCity(e.target.value as CityCode)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-            {cities.map((c) => <option key={c} value={c}>{cityNames[c]}</option>)}
-          </select>
-        </div>
+        <CustomSelect label="Паспорт" options={passportOptions} value={passport}
+          onChange={(v) => setPassport(v as PassportCode)} />
+        <CustomSelect label="Город вылета" options={cityOptions} value={originCity}
+          onChange={(v) => setOriginCity(v as CityCode)} />
       </div>
 
       {/* Счётчики */}
@@ -96,7 +103,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
                 <div>
                   <p className="font-medium">{concert.city}, {concert.country}</p>
                   <p className="text-sm text-zinc-400">
-                    {new Date(concert.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                    {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
                   </p>
                   <p className="text-sm text-zinc-500">{concert.venue}</p>
                 </div>

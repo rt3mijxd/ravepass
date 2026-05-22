@@ -4,11 +4,24 @@ import { use, useState } from "react";
 import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, VISA_LAST_UPDATED } from "@/data/visas";
-import { findFlightRoute, getAviasalesUrl, cityNames, passportNames } from "@/data/flights";
+import { findFlightRoute, getAviasalesUrl, cityNames } from "@/data/flights";
+import CustomSelect from "@/components/CustomSelect";
 import type { PassportCode, CityCode } from "@/types";
 
-const passports: PassportCode[] = ["RU", "AM", "GE", "KZ"];
-const cities: CityCode[] = ["MOW", "LED", "ALA", "EVN", "TBS"];
+const passportOptions = [
+  { value: "RU", label: "Российский" },
+  { value: "AM", label: "Армянский" },
+  { value: "GE", label: "Грузинский" },
+  { value: "KZ", label: "Казахстанский" },
+];
+
+const cityOptions = [
+  { value: "MOW", label: "Москва" },
+  { value: "LED", label: "Санкт-Петербург" },
+  { value: "ALA", label: "Алматы" },
+  { value: "EVN", label: "Ереван" },
+  { value: "TBS", label: "Тбилиси" },
+];
 
 export default function ConcertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -28,7 +41,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
   const visa = getVisaStatus(concert.countryCode, passport);
   const flight = findFlightRoute(originCity, concert.city);
-  const dateFormatted = new Date(concert.date).toLocaleDateString("ru-RU", {
+  const dateFormatted = new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
@@ -40,8 +53,12 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
       {/* Шапка */}
       <div className="flex gap-5 items-start">
-        <Image src={concert.artist.imageUrl} alt={concert.artist.name}
-          width={96} height={96} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+        {concert.artist.imageUrl ? (
+          <Image src={concert.artist.imageUrl} alt={concert.artist.name}
+            width={96} height={96} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" unoptimized />
+        ) : (
+          <div className="w-24 h-24 rounded-xl bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-3xl">♪</div>
+        )}
         <div>
           <h1 className="text-2xl font-bold">{concert.artist.name}</h1>
           <p className="text-zinc-400 mt-1">{dateFormatted}</p>
@@ -54,24 +71,13 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
         <h2 className="font-semibold">Ваша поездка</h2>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Паспорт</label>
-            <select value={passport} onChange={(e) => setPassport(e.target.value as PassportCode)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-              {passports.map((p) => <option key={p} value={p}>{passportNames[p]}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Город вылета</label>
-            <select value={originCity} onChange={(e) => setOriginCity(e.target.value as CityCode)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-              {cities.map((c) => <option key={c} value={c}>{cityNames[c]}</option>)}
-            </select>
-          </div>
+          <CustomSelect label="Паспорт" options={passportOptions} value={passport}
+            onChange={(v) => setPassport(v as PassportCode)} />
+          <CustomSelect label="Город вылета" options={cityOptions} value={originCity}
+            onChange={(v) => setOriginCity(v as CityCode)} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-          {/* Виза */}
           {visa && (
             <div className={`rounded-lg p-3 ${isVisaFree(visa) ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
               <p className="text-xs text-zinc-400">Виза</p>
@@ -80,7 +86,6 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
               </p>
             </div>
           )}
-          {/* Перелёт */}
           {flight && (
             <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
               <p className="text-xs text-zinc-400">Перелёт</p>
@@ -89,7 +94,6 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
               </p>
             </div>
           )}
-          {/* Цена */}
           {flight && (
             <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
               <p className="text-xs text-zinc-400">Перелёт от</p>
@@ -135,12 +139,10 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
         </a>
       </div>
 
-      {/* Дисклеймер */}
       <p className="text-xs text-zinc-600 text-center">
         Визовая информация актуальна на {VISA_LAST_UPDATED}. Проверяйте официальные источники перед поездкой.
       </p>
 
-      {/* Ссылка на артиста */}
       <div className="text-center">
         <a href={`/artist/${concert.artist.slug}`}
           className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">

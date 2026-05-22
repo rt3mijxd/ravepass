@@ -1,14 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, countryNames } from "@/data/visas";
 import { findFlightRoute, cityNames, passportNames } from "@/data/flights";
-import type { PassportCode, CityCode } from "@/types";
+import CustomSelect from "@/components/CustomSelect";
+import type { PassportCode, CityCode, Concert } from "@/types";
 
-const passports: PassportCode[] = ["RU", "AM", "GE", "KZ"];
-const cities: CityCode[] = ["MOW", "LED", "ALA", "EVN", "TBS"];
+const passportOptions = [
+  { value: "RU", label: "Российский" },
+  { value: "AM", label: "Армянский" },
+  { value: "GE", label: "Грузинский" },
+  { value: "KZ", label: "Казахстанский" },
+];
+
+const cityOptions = [
+  { value: "MOW", label: "Москва" },
+  { value: "LED", label: "Санкт-Петербург" },
+  { value: "ALA", label: "Алматы" },
+  { value: "EVN", label: "Ереван" },
+  { value: "TBS", label: "Тбилиси" },
+];
 
 const popularDestinations = [
   { city: "Стамбул", countryCode: "TR", emoji: "🇹🇷" },
@@ -20,7 +33,8 @@ const popularDestinations = [
 ];
 
 export default function HomePage() {
-  const allConcerts = mockConcerts;
+  const [allConcerts, setAllConcerts] = useState<Concert[]>(mockConcerts);
+  const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState<PassportCode>("RU");
   const [originCity, setOriginCity] = useState<CityCode>("MOW");
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
@@ -28,10 +42,28 @@ export default function HomePage() {
   const [countryFilter, setCountryFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
 
+  // Загружаем реальные данные из API
+  useEffect(() => {
+    fetch("/api/concerts")
+      .then((res) => res.json())
+      .then((data: Concert[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAllConcerts(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   const availableCountries = useMemo(() => {
     const codes = new Set(allConcerts.map((c) => c.countryCode).filter(Boolean));
     return Array.from(codes).sort((a, b) => (countryNames[a] ?? a).localeCompare(countryNames[b] ?? b, "ru"));
   }, [allConcerts]);
+
+  const countryOptions = useMemo(() => [
+    { value: "", label: "Все страны" },
+    ...availableCountries.map((code) => ({ value: code, label: countryNames[code] ?? code })),
+  ], [availableCountries]);
 
   const concerts = useMemo(() => {
     return allConcerts
@@ -61,52 +93,29 @@ export default function HomePage() {
       {/* Фильтры */}
       <section className="bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-800 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Паспорт</label>
-            <select
-              value={passport}
-              onChange={(e) => setPassport(e.target.value as PassportCode)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              {passports.map((p) => (
-                <option key={p} value={p}>{passportNames[p]}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Город вылета</label>
-            <select
-              value={originCity}
-              onChange={(e) => setOriginCity(e.target.value as CityCode)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              {cities.map((c) => (
-                <option key={c} value={c}>{cityNames[c]}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Страна</label>
-            <select
-              value={countryFilter}
-              onChange={(e) => setCountryFilter(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="">Все страны</option>
-              {availableCountries.map((code) => (
-                <option key={code} value={code}>{countryNames[code] ?? code}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect label="Паспорт" options={passportOptions} value={passport}
+            onChange={(v) => setPassport(v as PassportCode)} />
+          <CustomSelect label="Город вылета" options={cityOptions} value={originCity}
+            onChange={(v) => setOriginCity(v as CityCode)} />
+          <CustomSelect label="Страна" options={countryOptions} value={countryFilter}
+            onChange={setCountryFilter} />
           <div className="flex flex-col justify-end gap-2">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)}
-                className="accent-orange-500" />
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div className="relative">
+                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)}
+                  className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+              </div>
               Без визы
             </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)}
-                className="accent-orange-500" />
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div className="relative">
+                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)}
+                  className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+              </div>
               Прямые рейсы
             </label>
           </div>
@@ -142,9 +151,15 @@ export default function HomePage() {
         <h2 className="text-lg font-semibold mb-3">
           Концерты{" "}
           <span className="text-zinc-500 font-normal text-sm">
-            ({concerts.length})
+            ({loading ? "..." : concerts.length})
           </span>
         </h2>
+
+        {loading && (
+          <div className="flex justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-600 border-t-orange-500" />
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {concerts.map(({ concert, visa, flight }) => {
@@ -165,7 +180,7 @@ export default function HomePage() {
                       width={64}
                       height={64}
                       className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-  
+                      unoptimized
                     />
                   ) : (
                     <div className="w-16 h-16 rounded-lg bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-xl">
@@ -175,7 +190,7 @@ export default function HomePage() {
                   <div className="min-w-0">
                     <h3 className="font-semibold truncate">{concert.artist.name}</h3>
                     <p className="text-sm text-zinc-400">
-                      {new Date(concert.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                      {new Date(concert.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
                     </p>
                     <p className="text-sm text-zinc-500 truncate">{concert.city}, {concert.venue}</p>
                   </div>
@@ -209,7 +224,7 @@ export default function HomePage() {
             );
           })}
         </div>
-        {concerts.length === 0 && (
+        {!loading && concerts.length === 0 && (
           <p className="text-center text-zinc-500 py-12">Концертов по выбранным фильтрам не найдено</p>
         )}
       </section>

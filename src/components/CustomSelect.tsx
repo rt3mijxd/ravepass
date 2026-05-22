@@ -20,7 +20,6 @@ export default function CustomSelect({ label, options, value, onChange }: Custom
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
 
-  // Закрываем при клике вне компонента
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -33,11 +32,11 @@ export default function CustomSelect({ label, options, value, onChange }: Custom
 
   return (
     <div ref={ref} className="relative">
-      <span className="text-xs text-zinc-400 mb-1 block">{label}</span>
+      <span className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{label}</span>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-left hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+        className="w-full flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-left hover:border-zinc-400 dark:hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
       >
         <span className="truncate">{selectedLabel}</span>
         <svg
@@ -49,7 +48,7 @@ export default function CustomSelect({ label, options, value, onChange }: Custom
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-xl overflow-hidden">
           <div className="max-h-60 overflow-y-auto">
             {options.map((option) => (
               <button
@@ -61,8 +60,8 @@ export default function CustomSelect({ label, options, value, onChange }: Custom
                 }}
                 className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                   option.value === value
-                    ? "bg-orange-500/20 text-orange-400"
-                    : "hover:bg-zinc-700 text-zinc-200"
+                    ? "bg-orange-500/20 text-orange-600 dark:text-orange-400"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
                 }`}
               >
                 {option.label}

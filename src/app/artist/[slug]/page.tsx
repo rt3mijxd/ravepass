@@ -91,7 +91,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-orange-400 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
         {t("nav.back_all", lang)}
       </a>
 
@@ -102,7 +102,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
             alt={displayName} width={96} height={96}
             className="w-24 h-24 rounded-xl object-cover flex-shrink-0" unoptimized />
         ) : (
-          <div className="w-24 h-24 rounded-xl bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-3xl">♪</div>
+          <div className="w-24 h-24 rounded-xl bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-3xl">♪</div>
         )}
         <div>
           <h1 className="text-2xl font-bold">{displayName}</h1>
@@ -125,13 +125,13 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
       {/* Счётчики */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4 text-center">
+        <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-center">
           <p className="text-3xl font-bold">{stats.total}</p>
           <p className="text-xs text-zinc-500 mt-1">
             {pluralizeI18n(stats.total, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
           </p>
         </div>
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4 text-center">
+        <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-center">
           <p className={`text-3xl font-bold ${stats.visaFree > 0 ? "text-emerald-400" : "text-red-400"}`}>
             {stats.visaFree}
           </p>
@@ -156,7 +156,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
           const flight = findFlightRoute(originCity, concert.city);
           return (
             <a key={concert.id} href={`/concert/${concert.id}`}
-              className="block bg-zinc-900 rounded-xl border border-zinc-800 p-4 hover:border-zinc-600 transition-all">
+              className="block bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-medium">{concert.city}{concert.country ? `, ${concert.country}` : ""}</p>
@@ -194,7 +194,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
       </section>
 
       {/* Уведомления */}
-      <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 text-center space-y-3">
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 text-center space-y-3">
         <p className="text-sm text-zinc-400">{t("concert.notify", lang)} {displayName}?</p>
         <a href={`mailto:your@email.com?subject=${lang === "ru" ? "Уведомления" : "Notifications"}: ${displayName}&body=${lang === "ru" ? "Хочу получать уведомления о новых концертах" : "I want notifications about new concerts by"} ${displayName}`}
           className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-medium px-6 py-2.5 rounded-xl transition-colors text-sm">

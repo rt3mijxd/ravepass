@@ -5,7 +5,6 @@ import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
-import CustomSelect from "@/components/CustomSelect";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
@@ -38,7 +37,7 @@ interface ArtistGroup {
 }
 
 export default function HomePage() {
-  const { lang, currency } = useSettings();
+  const { lang } = useSettings();
   const [allConcerts, setAllConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,9 +61,7 @@ export default function HomePage() {
           setAllConcerts(mockConcerts);
         }
       })
-      .catch(() => {
-        setAllConcerts(mockConcerts);
-      })
+      .catch(() => { setAllConcerts(mockConcerts); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -74,13 +71,12 @@ export default function HomePage() {
   }, [allConcerts]);
 
   const countryOptions = useMemo(() => [
-    { value: "", label: t("filter.all_countries", lang) },
+    { value: "", label: t("filter.all_countries", lang), group: "popular" },
     ...availableCountries.map((code) => ({ value: code, label: countryNames[code] ?? code })),
   ], [availableCountries, lang]);
 
   const artistGroups = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-
     const filtered = allConcerts
       .map((concert) => ({
         concert,
@@ -98,37 +94,31 @@ export default function HomePage() {
       });
 
     const groupMap = new Map<string, ArtistGroup>();
-
     for (const item of filtered) {
       const slug = item.concert.artist.slug;
       if (!groupMap.has(slug)) {
         groupMap.set(slug, {
-          artistName: item.concert.artist.name,
-          slug,
-          imageUrl: item.concert.artist.imageUrl,
-          genre: item.concert.artist.genre,
+          artistName: item.concert.artist.name, slug,
+          imageUrl: item.concert.artist.imageUrl, genre: item.concert.artist.genre,
           concerts: [],
         });
       }
       groupMap.get(slug)!.concerts.push(item);
     }
-
     for (const group of groupMap.values()) {
       group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
     }
-
     return Array.from(groupMap.values()).sort((a, b) => b.concerts.length - a.concerts.length);
   }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
 
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
-
   const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
       {/* Поиск */}
       <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
@@ -136,50 +126,38 @@ export default function HomePage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("search.placeholder", lang)}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
         {searchQuery && (
           <button onClick={() => setSearchQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
             ✕
           </button>
         )}
       </div>
 
       {/* Фильтры */}
-      <section className="bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-800 space-y-4">
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-800 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SearchableSelect
-            label={t("filter.passport", lang)}
-            options={passportOpts}
-            value={passport}
-            onChange={setPassport}
-            searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."}
-          />
-          <SearchableSelect
-            label={t("filter.origin_city", lang)}
-            options={cityOpts}
-            value={originCity}
-            onChange={setOriginCity}
-            searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."}
-          />
-          <CustomSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
-            onChange={setCountryFilter} />
+          <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
+            onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
+          <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
+            onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
+          <SearchableSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
+            onChange={setCountryFilter} searchPlaceholder={lang === "ru" ? "Поиск страны..." : "Search country..."} />
           <div className="flex flex-col justify-end gap-2">
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <div className="relative">
-                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)}
-                  className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
                 <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
               </div>
               {t("filter.visa_free", lang)}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <div className="relative">
-                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)}
-                  className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
                 <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
               </div>
               {t("filter.direct_flights", lang)}
@@ -193,16 +171,12 @@ export default function HomePage() {
         <h2 className="text-lg font-semibold mb-3">{t("section.popular", lang)}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {popularDestinations.map((dest) => (
-            <button
-              key={dest.city}
-              onClick={() => {
-                setCityFilter(cityFilter === dest.city ? "" : dest.city);
-                setCountryFilter("");
-              }}
+            <button key={dest.city}
+              onClick={() => { setCityFilter(cityFilter === dest.city ? "" : dest.city); setCountryFilter(""); }}
               className={`flex-shrink-0 px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
                 cityFilter === dest.city
-                  ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                  : "bg-zinc-900 border-zinc-800 hover:border-zinc-600"
+                  ? "bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400"
+                  : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
               }`}
             >
               <span className="text-lg mr-2">{dest.emoji}</span>
@@ -216,14 +190,14 @@ export default function HomePage() {
       <section>
         <h2 className="text-lg font-semibold mb-3">
           {t("section.concerts", lang)}{" "}
-          <span className="text-zinc-500 font-normal text-sm">
+          <span className="text-zinc-400 dark:text-zinc-500 font-normal text-sm">
             ({loading ? "..." : `${totalConcerts} ${pluralizeI18n(totalConcerts, lang, "событие", "события", "событий", "event", "events")}, ${artistGroups.length} ${pluralizeI18n(artistGroups.length, lang, "артист", "артиста", "артистов", "artist", "artists")}`})
           </span>
         </h2>
 
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-600 border-t-orange-500" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 dark:border-zinc-600 border-t-orange-500" />
           </div>
         )}
 
@@ -238,27 +212,26 @@ export default function HomePage() {
 
             return (
               <div key={group.slug}
-                className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden hover:border-zinc-600 transition-all">
+                className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
                 <div className="flex gap-4 p-4 pb-2">
                   {group.imageUrl ? (
-                    <Image src={group.imageUrl} alt={group.artistName}
-                      width={56} height={56}
+                    <Image src={group.imageUrl} alt={group.artistName} width={56} height={56}
                       className="w-14 h-14 rounded-lg object-cover flex-shrink-0" unoptimized />
                   ) : (
-                    <div className="w-14 h-14 rounded-lg bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-xl">♪</div>
+                    <div className="w-14 h-14 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl">♪</div>
                   )}
                   <div className="min-w-0">
                     <h3 className="font-semibold truncate">{group.artistName}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
                         {group.concerts.length} {pluralizeI18n(group.concerts.length, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
                       </span>
                       {hasVisaFree ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                           {t("visa.has_visa_free", lang)}
                         </span>
                       ) : (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500 dark:text-red-400">
                           {t("visa.needs_visa", lang)}
                         </span>
                       )}
@@ -269,31 +242,30 @@ export default function HomePage() {
                 <div className="px-4 pb-3 space-y-1.5">
                   {preview.map(({ concert, visa, flight }) => (
                     <a key={concert.id} href={`/concert/${concert.id}`}
-                      className="flex items-center justify-between gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-zinc-800/50 transition-colors group">
+                      className="flex items-center justify-between gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors group">
                       <div className="min-w-0">
-                        <p className="text-sm truncate group-hover:text-orange-400 transition-colors">
+                        <p className="text-sm truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">
                           {concert.city}{concert.country ? `, ${concert.country}` : ""}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500">
                           {new Date(concert.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
                           {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
-                          {" · "}
-                          {concert.venue}
+                          {" · "}{concert.venue}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         {visa && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                             isVisaFree(visa)
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : "bg-red-500/15 text-red-400"
+                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                              : "bg-red-500/15 text-red-500 dark:text-red-400"
                           }`}>
                             {visaLabel(visa)}
                           </span>
                         )}
                         {flight ? (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                            flight.direct ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/15 text-amber-400"
+                            flight.direct ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                           }`}>
                             {flight.direct ? t("flight.direct", lang) : t("flight.connection", lang)}
                           </span>
@@ -305,7 +277,7 @@ export default function HomePage() {
 
                 {remaining > 0 && (
                   <a href={`/artist/${group.slug}`}
-                    className="block text-center text-xs text-orange-400 hover:text-orange-300 py-2.5 border-t border-zinc-800 transition-colors">
+                    className="block text-center text-xs text-orange-500 dark:text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 py-2.5 border-t border-zinc-200 dark:border-zinc-800 transition-colors">
                     {t("nav.more", lang)} {remaining} {pluralizeI18n(remaining, lang, "концерт", "концерта", "концертов", "concert", "concerts")} →
                   </a>
                 )}
@@ -315,7 +287,7 @@ export default function HomePage() {
         </div>
 
         {!loading && artistGroups.length === 0 && (
-          <p className="text-center text-zinc-500 py-12">
+          <p className="text-center text-zinc-400 dark:text-zinc-500 py-12">
             {searchQuery
               ? (lang === "ru" ? `Артист «${searchQuery}» не найден` : `Artist "${searchQuery}" not found`)
               : t("empty.no_concerts", lang)}

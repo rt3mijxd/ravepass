@@ -66,7 +66,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-orange-400 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
         {t("nav.back_all", lang)}
       </a>
 
@@ -76,7 +76,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
           <Image src={concert.artist.imageUrl} alt={concert.artist.name}
             width={96} height={96} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" unoptimized />
         ) : (
-          <div className="w-24 h-24 rounded-xl bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-600 text-3xl">♪</div>
+          <div className="w-24 h-24 rounded-xl bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-3xl">♪</div>
         )}
         <div>
           <h1 className="text-2xl font-bold">{concert.artist.name}</h1>
@@ -90,7 +90,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       </div>
 
       {/* Настройки поездки */}
-      <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-4">
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
         <h2 className="font-semibold">{t("concert.your_trip", lang)}</h2>
         <div className="grid grid-cols-2 gap-3">
           <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
@@ -110,13 +110,13 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
           )}
           {flight ? (
             <>
-              <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
+              <div className="rounded-lg p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                 <p className="text-xs text-zinc-400">{t("concert.flight", lang)}</p>
                 <p className="font-medium text-sm">
                   {flight.direct ? t("flight.direct_full", lang) : t("flight.connection_full", lang)}, ~{flight.flightTimeHours}{t("unit.h", lang)}
                 </p>
               </div>
-              <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700">
+              <div className="rounded-lg p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                 <p className="text-xs text-zinc-400">{t("concert.flight_from", lang)}</p>
                 <p className="font-medium text-sm">
                   {formatPrice(flightMin!, currency, lang)}–{formatPrice(flightMax!, currency, lang)}
@@ -124,7 +124,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
               </div>
             </>
           ) : (
-            <div className="rounded-lg p-3 bg-zinc-800 border border-zinc-700 col-span-2">
+            <div className="rounded-lg p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 col-span-2">
               <p className="text-xs text-zinc-400">{t("concert.flight", lang)}</p>
               <p className="font-medium text-sm text-zinc-500">{t("flight.no_data", lang)} {originCityName}</p>
             </div>
@@ -133,7 +133,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       </section>
 
       {/* Примерный бюджет */}
-      <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-5 space-y-3">
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-3">
         <h2 className="font-semibold">{t("concert.budget", lang)}</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -150,7 +150,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
               <span>{formatPrice(flightMin, currency, lang)}–{formatPrice(flightMax, currency, lang)}</span>
             </div>
           )}
-          <hr className="border-zinc-800" />
+          <hr className="border-zinc-200 dark:border-zinc-800" />
           {(ticketMin != null || flightMin != null) && (
             <div className="flex justify-between font-medium">
               <span>{t("concert.total_from", lang)}</span>
@@ -169,7 +169,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
           {t("concert.buy_tickets", lang)}
         </a>
         <a href={getAviasalesUrl(originCity, concert.city, concert.date)} target="_blank" rel="noopener noreferrer"
-          className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-medium py-3 rounded-xl transition-colors">
+          className="flex-1 text-center bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 font-medium py-3 rounded-xl transition-colors">
           {t("concert.find_flights", lang)}
         </a>
       </div>

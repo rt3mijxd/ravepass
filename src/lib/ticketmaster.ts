@@ -106,18 +106,18 @@ function parseTMEvent(event: TMEvent): Concert | null {
  */
 export async function searchEventsByCountry(
   countryCode: string,
-  options: { page?: number; size?: number; keyword?: string } = {}
+  options: { page?: number; size?: number; keyword?: string; sort?: string } = {}
 ): Promise<{ concerts: Concert[]; totalPages: number }> {
   if (!API_KEY) return { concerts: [], totalPages: 0 };
 
-  const { page = 0, size = 50, keyword } = options;
+  const { page = 0, size = 50, keyword, sort = "relevance,desc" } = options;
   const params = new URLSearchParams({
     apikey: API_KEY,
     countryCode,
     classificationName: "music",
     size: String(size),
     page: String(page),
-    sort: "date,asc",
+    sort,
   });
   if (keyword) params.set("keyword", keyword);
 
@@ -162,29 +162,72 @@ export async function searchEventsByArtist(
   return events.map(parseTMEvent).filter((c): c is Concert => c !== null);
 }
 
+// Топовые артисты — их концерты показываем первыми
+const TOP_ARTISTS = [
+  "Coldplay", "The Weeknd", "Ed Sheeran", "Dua Lipa", "Taylor Swift",
+  "Billie Eilish", "Imagine Dragons", "Rammstein", "Arctic Monkeys", "Muse",
+  "Metallica", "Kendrick Lamar", "Post Malone", "Twenty One Pilots", "Gorillaz",
+  "Radiohead", "Tame Impala", "Red Hot Chili Peppers", "Depeche Mode", "Beyoncé",
+  "The Killers", "Lana Del Rey", "Hozier", "Sam Smith", "Doja Cat",
+];
+
+// Набор для быстрой проверки (в нижнем регистре)
+const topArtistSet = new Set(TOP_ARTISTS.map((a) => a.toLowerCase()));
+
 /**
- * Загружаем концерты из ключевых стран для главной страницы
+ * Загружаем концерты: сначала топовые артисты, потом популярное по странам
  */
 export async function fetchFeaturedConcerts(): Promise<Concert[]> {
-  // Страны где больше всего концертов + доступные из СНГ
-  const targetCountries = [
-    "TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL",
-    "GB", "DE", "FR", "ES", "IT", "NL", "US",
-    "MA", "EG", "KR", "JP", "MY",
-  ];
-
-  const results = await Promise.allSettled(
-    targetCountries.map((code) =>
-      searchEventsByCountry(code, { size: 20 })
-    )
-  );
+  // 1. Концерты топовых артистов (параллельно, по 10 за раз чтобы не превысить лимит)
+  const artistBatches = [];
+  for (let i = 0; i < TOP_ARTISTS.length; i += 10) {
+    artistBatches.push(TOP_ARTISTS.slice(i, i + 10));
+  }
 
   const allConcerts: Concert[] = [];
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      allConcerts.push(...result.value.concerts);
+  const seenIds = new Set<string>();
+
+  for (const batch of artistBatches) {
+    const results = await Promise.allSettled(
+      batch.map((name) => searchEventsByArtist(name, { size: 20 }))
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        for (const c of result.value) {
+          if (!seenIds.has(c.id)) {
+            seenIds.add(c.id);
+            allConcerts.push(c);
+          }
+        }
+      }
     }
   }
 
-  return allConcerts.sort((a, b) => a.date.localeCompare(b.date));
+  // 2. Дополняем популярным из безвизовых стран (по relevance)
+  const visaFreeCountries = ["TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL", "MA"];
+
+  const countryResults = await Promise.allSettled(
+    visaFreeCountries.map((code) =>
+      searchEventsByCountry(code, { size: 15, sort: "relevance,desc" })
+    )
+  );
+
+  for (const result of countryResults) {
+    if (result.status === "fulfilled") {
+      for (const c of result.value.concerts) {
+        if (!seenIds.has(c.id)) {
+          seenIds.add(c.id);
+          allConcerts.push(c);
+        }
+      }
+    }
+  }
+
+  // 3. Сортировка: топовые артисты первыми, потом по дате
+  return allConcerts.sort((a, b) => {
+    const aTop = topArtistSet.has(a.artist.name.toLowerCase()) ? 0 : 1;
+    const bTop = topArtistSet.has(b.artist.name.toLowerCase()) ? 0 : 1;
+    if (aTop !== bTop) return aTop - bTop;
+    return a.date.localeCompare(b.date);
+  });
 }

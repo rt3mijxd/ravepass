@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, countryNames } from "@/data/visas";
-import { findFlightRoute, cityNames, passportNames } from "@/data/flights";
+import { findFlightRoute, cityNames } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
 import type { PassportCode, CityCode, Concert } from "@/types";
 
@@ -35,6 +35,7 @@ const popularDestinations = [
 export default function HomePage() {
   const [allConcerts, setAllConcerts] = useState<Concert[]>(mockConcerts);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [passport, setPassport] = useState<PassportCode>("RU");
   const [originCity, setOriginCity] = useState<CityCode>("MOW");
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
@@ -66,6 +67,8 @@ export default function HomePage() {
   ], [availableCountries]);
 
   const concerts = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+
     return allConcerts
       .map((concert) => {
         const visa = getVisaStatus(concert.countryCode, passport);
@@ -73,23 +76,41 @@ export default function HomePage() {
         return { concert, visa, flight };
       })
       .filter(({ concert, visa, flight }) => {
+        // Поиск по артисту
+        if (query && !concert.artist.name.toLowerCase().includes(query)) return false;
         if (visaFreeOnly && visa && !isVisaFree(visa)) return false;
         if (directOnly && flight && !flight.direct) return false;
         if (directOnly && !flight) return false;
         if (countryFilter && concert.countryCode !== countryFilter) return false;
         if (cityFilter && concert.city !== cityFilter) return false;
         return true;
-      })
-      .sort((a, b) => {
-        const aFree = a.visa ? isVisaFree(a.visa) : false;
-        const bFree = b.visa ? isVisaFree(b.visa) : false;
-        if (aFree !== bFree) return aFree ? -1 : 1;
-        return a.concert.date.localeCompare(b.concert.date);
       });
-  }, [allConcerts, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
+  }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+      {/* Поиск */}
+      <div className="relative">
+        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Найти артиста..."
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Фильтры */}
       <section className="bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-800 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -163,14 +184,11 @@ export default function HomePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {concerts.map(({ concert, visa, flight }) => {
-            const needsVisa = visa ? !isVisaFree(visa) : false;
             return (
               <a
                 key={concert.id}
                 href={`/concert/${concert.id}`}
-                className={`block bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden hover:border-zinc-600 transition-all ${
-                  needsVisa ? "opacity-60" : ""
-                }`}
+                className="block bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden hover:border-zinc-600 transition-all"
               >
                 <div className="flex gap-4 p-4">
                   {concert.artist.imageUrl ? (
@@ -196,26 +214,33 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 px-4 pb-4">
+                  {/* Визовый тег — всегда показываем */}
                   {visa && (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       isVisaFree(visa)
                         ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-red-500/20 text-red-400"
+                        : "bg-red-500/15 text-red-400"
                     }`}>
                       {visaStatusLabels[visa]}
                     </span>
                   )}
-                  {flight && (
+                  {/* Тег рейса — всегда показываем, даже если нет данных */}
+                  {flight ? (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       flight.direct
                         ? "bg-blue-500/20 text-blue-400"
-                        : "bg-zinc-700 text-zinc-400"
+                        : "bg-amber-500/15 text-amber-400"
                     }`}>
                       {flight.direct ? "Прямой рейс" : "С пересадкой"}
                     </span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500">
+                      Рейсы не найдены
+                    </span>
                   )}
+                  {/* Цена перелёта */}
                   {flight && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-400">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
                       ~{flight.priceRange[0].toLocaleString("ru")}–{flight.priceRange[1].toLocaleString("ru")} ₽
                     </span>
                   )}
@@ -225,7 +250,9 @@ export default function HomePage() {
           })}
         </div>
         {!loading && concerts.length === 0 && (
-          <p className="text-center text-zinc-500 py-12">Концертов по выбранным фильтрам не найдено</p>
+          <p className="text-center text-zinc-500 py-12">
+            {searchQuery ? `Артист «${searchQuery}» не найден` : "Концертов по выбранным фильтрам не найдено"}
+          </p>
         )}
       </section>
     </div>

@@ -6,6 +6,7 @@ import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, visaStatusLabels, countryNames } from "@/data/visas";
 import { findFlightRoute, cityNames } from "@/data/flights";
 import CustomSelect from "@/components/CustomSelect";
+import { pluralize } from "@/lib/pluralize";
 import type { PassportCode, CityCode, Concert, VisaStatus } from "@/types";
 import type { FlightRoute } from "@/types";
 
@@ -212,7 +213,7 @@ export default function HomePage() {
         <h2 className="text-lg font-semibold mb-3">
           Концерты{" "}
           <span className="text-zinc-500 font-normal text-sm">
-            ({loading ? "..." : `${totalConcerts} событий, ${artistGroups.length} артистов`})
+            ({loading ? "..." : `${totalConcerts} ${pluralize(totalConcerts, "событие", "события", "событий")}, ${artistGroups.length} ${pluralize(artistGroups.length, "артист", "артиста", "артистов")}`})
           </span>
         </h2>
 
@@ -224,9 +225,13 @@ export default function HomePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {artistGroups.map((group) => {
-            // Показываем до 3 ближайших концертов
-            const preview = group.concerts.slice(0, 3);
+            // Показываем до 3 ближайших концертов, приоритет — безвизовым
+            const visaFreeConcerts = group.concerts.filter(({ visa }) => visa && isVisaFree(visa));
+            const visaRequiredConcerts = group.concerts.filter(({ visa }) => !visa || !isVisaFree(visa));
+            const sorted = [...visaFreeConcerts, ...visaRequiredConcerts];
+            const preview = sorted.slice(0, 3);
             const remaining = group.concerts.length - preview.length;
+            const hasVisaFree = visaFreeConcerts.length > 0;
 
             return (
               <div key={group.slug}
@@ -242,11 +247,20 @@ export default function HomePage() {
                   )}
                   <div className="min-w-0">
                     <h3 className="font-semibold truncate">{group.artistName}</h3>
-                    <p className="text-xs text-zinc-500">{group.genre}</p>
-                    <p className="text-xs text-zinc-600 mt-0.5">{group.concerts.length} {
-                      group.concerts.length === 1 ? "концерт" :
-                      group.concerts.length < 5 ? "концерта" : "концертов"
-                    }</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-zinc-500">
+                        {group.concerts.length} {pluralize(group.concerts.length, "концерт", "концерта", "концертов")}
+                      </span>
+                      {hasVisaFree ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                          Есть без визы
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400">
+                          Нужна виза
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -291,7 +305,7 @@ export default function HomePage() {
                 {remaining > 0 && (
                   <a href={`/artist/${group.slug}`}
                     className="block text-center text-xs text-orange-400 hover:text-orange-300 py-2.5 border-t border-zinc-800 transition-colors">
-                    ещё {remaining} {remaining === 1 ? "концерт" : remaining < 5 ? "концерта" : "концертов"} →
+                    ещё {remaining} {pluralize(remaining, "концерт", "концерта", "концертов")} →
                   </a>
                 )}
               </div>

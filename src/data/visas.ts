@@ -117,6 +117,39 @@ export const visaStatusLabels: Record<VisaStatus, string> = {
   visa_required: "Нужна виза",
 };
 
+// Подробная визовая информация: сроки безвизового пребывания
+// Формат: countryCode -> passport -> "30 дней" / "90 дней в 180" и т.д.
+export const visaDetails: Record<string, Record<string, string>> = {
+  TR: { RU: "60 дней", AM: "90 дней", GE: "1 год", KZ: "30 дней", UA: "90 дней", BY: "30 дней" },
+  RS: { RU: "30 дней", AM: "30 дней", GE: "30 дней", KZ: "30 дней", UA: "30 дней", BY: "30 дней" },
+  ME: { RU: "30 дней", AM: "30 дней", GE: "90 дней", KZ: "30 дней" },
+  AE: { RU: "90 дней", AM: "90 дней", GE: "90 дней", KZ: "30 дней" },
+  TH: { RU: "60 дней", AM: "30 дней", GE: "30 дней", KZ: "30 дней" },
+  GE: { RU: "1 год", AM: "1 год", KZ: "1 год", UA: "1 год", BY: "1 год" },
+  AM: { RU: "180 дней", GE: "180 дней", KZ: "180 дней", UA: "180 дней" },
+  KZ: { RU: "90 дней", AM: "90 дней", GE: "90 дней", KG: "90 дней" },
+  IL: { RU: "90 дней", AM: "90 дней", GE: "90 дней", KZ: "90 дней", UA: "90 дней" },
+  MA: { RU: "90 дней", AM: "90 дней" },
+  AR: { RU: "90 дней" },
+  BR: { RU: "90 дней" },
+  MY: { RU: "30 дней" },
+  ID: { RU: "30 дней" },
+  EG: { RU: "30 дней" },
+  CN: { RU: "15 дней", KZ: "14 дней" },
+  QA: { RU: "90 дней" },
+  // Шенген для безвизовых паспортов
+  DE: { GE: "90/180 дней", UA: "90/180 дней", MD: "90/180 дней" },
+  FR: { GE: "90/180 дней", UA: "90/180 дней", MD: "90/180 дней" },
+  ES: { GE: "90/180 дней", UA: "90/180 дней", MD: "90/180 дней" },
+  IT: { GE: "90/180 дней", UA: "90/180 дней", MD: "90/180 дней" },
+  NL: { GE: "90/180 дней", UA: "90/180 дней", MD: "90/180 дней" },
+  SE: { GE: "90/180 дней", UA: "90/180 дней" },
+  PL: { GE: "90/180 дней", UA: "90/180 дней" },
+  CZ: { GE: "90/180 дней", UA: "90/180 дней" },
+  AT: { GE: "90/180 дней", UA: "90/180 дней" },
+  GB: { GE: "1 год", UA: "6 месяцев" },
+};
+
 // Расширенные визовые данные для других паспортов
 // Формат: passportCode -> { countryCode -> VisaStatus }
 const extendedVisaData: Record<string, Record<string, VisaStatus>> = {
@@ -209,15 +242,14 @@ const extendedVisaData: Record<string, Record<string, VisaStatus>> = {
   KR: { _default: "visa_free", RU: "visa_required" },
 };
 
-export function getVisaStatus(countryCode: string, passport: string): VisaStatus | null {
-  // 1. Проверяем основную таблицу (для RU, AM, GE, KZ)
-  const corePassport = passport as CorePassportCode;
-  if (visaData[countryCode]?.[corePassport]) {
-    return visaData[countryCode][corePassport];
-  }
-
-  // 2. Свой паспорт = свою страну не нужна виза
+export function getVisaStatus(countryCode: string, passport: string): VisaStatus {
+  // 1. Свой паспорт = своя страна — виза не нужна
   if (countryCode === passport) return "visa_free";
+
+  // 2. Проверяем основную таблицу (для RU, AM, GE, KZ)
+  const corePassport = passport as CorePassportCode;
+  const coreResult = visaData[countryCode]?.[corePassport];
+  if (coreResult) return coreResult;
 
   // 3. Проверяем расширенную таблицу
   const extData = extendedVisaData[passport];
@@ -226,8 +258,15 @@ export function getVisaStatus(countryCode: string, passport: string): VisaStatus
     if (extData._default) return extData._default as VisaStatus;
   }
 
-  // 4. Если ничего не найдено — возвращаем null (неизвестно)
-  return null;
+  // 4. Дефолт: если данных нет — предполагаем что виза нужна (безопаснее)
+  return "visa_required";
+}
+
+/**
+ * Получить детали визы (срок пребывания)
+ */
+export function getVisaDetails(countryCode: string, passport: string): string | null {
+  return visaDetails[countryCode]?.[passport] ?? null;
 }
 
 export function isVisaFree(status: VisaStatus): boolean {

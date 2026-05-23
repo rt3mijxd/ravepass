@@ -80,5 +80,5 @@ export function findFlightRoute(origin: string, destinationCity: string): Flight
 
 export function getAviasalesUrl(origin: string, destinationCity: string, date: string): string {
   const dest = cityToAirport[destinationCity] ?? destinationCity;
-  return `https://www.aviasales.ru/?marker=YOUR_ID&origin=${origin}&destination=${dest}&depart_date=${date}`;
+  return `https://www.aviasales.ru/?marker=624344&origin=${origin}&destination=${dest}&depart_date=${date}`;
 }

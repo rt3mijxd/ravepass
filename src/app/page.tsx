@@ -24,7 +24,7 @@ const popularDestinations = [
 
 interface EnrichedConcert {
   concert: Concert;
-  visa: VisaStatus | null;
+  visa: VisaStatus;
   flight: FlightRoute | null;
 }
 
@@ -85,7 +85,7 @@ export default function HomePage() {
       }))
       .filter(({ concert, visa, flight }) => {
         if (query && !concert.artist.name.toLowerCase().includes(query)) return false;
-        if (visaFreeOnly && visa && !isVisaFree(visa)) return false;
+        if (visaFreeOnly && !isVisaFree(visa)) return false;
         if (directOnly && flight && !flight.direct) return false;
         if (directOnly && !flight) return false;
         if (countryFilter && concert.countryCode !== countryFilter) return false;
@@ -203,8 +203,8 @@ export default function HomePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {artistGroups.map((group) => {
-            const visaFreeConcerts = group.concerts.filter(({ visa }) => visa && isVisaFree(visa));
-            const visaRequiredConcerts = group.concerts.filter(({ visa }) => !visa || !isVisaFree(visa));
+            const visaFreeConcerts = group.concerts.filter(({ visa }) => isVisaFree(visa));
+            const visaRequiredConcerts = group.concerts.filter(({ visa }) => !isVisaFree(visa));
             const sorted = [...visaFreeConcerts, ...visaRequiredConcerts];
             const preview = sorted.slice(0, 3);
             const remaining = group.concerts.length - preview.length;
@@ -213,7 +213,7 @@ export default function HomePage() {
             return (
               <div key={group.slug}
                 className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
-                <div className="flex gap-4 p-4 pb-2">
+                <a href={`/artist/${group.slug}`} className="flex gap-4 p-4 pb-2 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors">
                   {group.imageUrl ? (
                     <Image src={group.imageUrl} alt={group.artistName} width={56} height={56}
                       className="w-14 h-14 rounded-lg object-cover flex-shrink-0" unoptimized />
@@ -237,7 +237,7 @@ export default function HomePage() {
                       )}
                     </div>
                   </div>
-                </div>
+                </a>
 
                 <div className="px-4 pb-3 space-y-1.5">
                   {preview.map(({ concert, visa, flight }) => (
@@ -254,15 +254,13 @@ export default function HomePage() {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        {visa && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                             isVisaFree(visa)
                               ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                               : "bg-red-500/15 text-red-500 dark:text-red-400"
                           }`}>
                             {visaLabel(visa)}
                           </span>
-                        )}
                         {flight ? (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                             flight.direct ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"

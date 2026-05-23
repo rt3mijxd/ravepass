@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
-import { getVisaStatus, isVisaFree, VISA_LAST_UPDATED } from "@/data/visas";
+import { getVisaStatus, isVisaFree, getVisaDetails, VISA_LAST_UPDATED } from "@/data/visas";
 import { findFlightRoute, getAviasalesUrl } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useSettings } from "@/components/SettingsContext";
@@ -50,6 +50,7 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
   }
 
   const visa = getVisaStatus(concert.countryCode, passport);
+  const visaDets = getVisaDetails(concert.countryCode, passport);
   const flight = findFlightRoute(originCity, concert.city);
   const dateFormatted = new Date(concert.date + "T12:00:00").toLocaleDateString(
     lang === "ru" ? "ru-RU" : "en-US",
@@ -100,14 +101,15 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-          {visa && (
             <div className={`rounded-lg p-3 ${isVisaFree(visa) ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
               <p className="text-xs text-zinc-400">{t("concert.visa", lang)}</p>
               <p className={`font-medium text-sm ${isVisaFree(visa) ? "text-emerald-400" : "text-red-400"}`}>
                 {t(`visa.${visa}` as Parameters<typeof t>[0], lang)}
               </p>
+              {visaDets && isVisaFree(visa) && (
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{visaDets}</p>
+              )}
             </div>
-          )}
           {flight ? (
             <>
               <div className="rounded-lg p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">

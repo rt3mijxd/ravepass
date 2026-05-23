@@ -50,7 +50,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
     const total = concerts.length;
     const visaFree = concerts.filter((c) => {
       const visa = getVisaStatus(c.countryCode, passport);
-      return visa && isVisaFree(visa);
+      return isVisaFree(visa);
     }).length;
 
     const dates = concerts.map((c) => c.date).filter(Boolean).sort();
@@ -172,13 +172,11 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
-                  {visa && (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       isVisaFree(visa) ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/15 text-red-400"
                     }`}>
                       {t(`visa.${visa}` as Parameters<typeof t>[0], lang)}
                     </span>
-                  )}
                   {flight ? (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       flight.direct ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/15 text-amber-400"

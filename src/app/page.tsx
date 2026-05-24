@@ -292,6 +292,17 @@ export default function HomePage() {
           </p>
         )}
       </section>
+
+      {/* Предложить артиста */}
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center space-y-3">
+        <h2 className="font-semibold text-lg">{t("suggest.title", lang)}</h2>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-lg mx-auto">{t("suggest.description", lang)}</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          {lang === "ru"
+            ? "Нажмите 💬 в правом верхнем углу"
+            : "Click 💬 in the top right corner"}
+        </p>
+      </section>
     </div>
   );
 }

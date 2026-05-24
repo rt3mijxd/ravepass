@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mockConcerts } from "@/data/concerts";
+import { cisConcerts } from "@/data/cis-artists";
 
 const API_KEY = process.env.TICKETMASTER_API_KEY || "";
 
@@ -8,6 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  // CIS-концерт
+  if (id.startsWith("cis-")) {
+    const concert = cisConcerts.find((c) => c.id === id);
+    if (concert) return NextResponse.json(concert);
+    return NextResponse.json(null, { status: 404 });
+  }
 
   // Моковый концерт
   if (!id.startsWith("tm-")) {

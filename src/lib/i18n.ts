@@ -148,6 +148,35 @@ const translations = {
   // Пустые состояния
   "empty.artist_not_found": { ru: "Артист «{query}» не найден", en: "Artist \"{query}\" not found" },
   "empty.no_concerts": { ru: "Концертов по выбранным фильтрам не найдено", en: "No concerts found for selected filters" },
+
+  // Предложить артиста
+  "suggest.title": { ru: "Не нашли любимого артиста?", en: "Can't find your favorite artist?" },
+  "suggest.description": { ru: "Мы постоянно добавляем новых артистов. Напишите нам, кого вы хотите увидеть!", en: "We're constantly adding new artists. Tell us who you'd like to see!" },
+  "suggest.button": { ru: "Предложить артиста", en: "Suggest an artist" },
+  "suggest.email_subject": { ru: "Предложение артиста для RavePass", en: "Artist suggestion for RavePass" },
+  "suggest.email_body": { ru: "Хочу видеть на RavePass концерты артиста: ", en: "I'd like to see concerts by: " },
+
+  // CIS-артисты
+  "section.cis_artists": { ru: "Русскоязычные артисты", en: "Russian-speaking artists" },
+
+  // Форма обратной связи
+  "feedback.button": { ru: "Обратная связь", en: "Feedback" },
+  "feedback.title": { ru: "Обратная связь", en: "Feedback" },
+  "feedback.name": { ru: "Ваше имя", en: "Your name" },
+  "feedback.name_placeholder": { ru: "Как вас зовут?", en: "What's your name?" },
+  "feedback.email": { ru: "Email", en: "Email" },
+  "feedback.email_placeholder": { ru: "email@example.com", en: "email@example.com" },
+  "feedback.message": { ru: "Сообщение", en: "Message" },
+  "feedback.message_placeholder": { ru: "Что можно улучшить? Что понравилось?", en: "What can we improve? What did you like?" },
+  "feedback.artist": { ru: "Какого артиста не хватает?", en: "Which artist is missing?" },
+  "feedback.artist_placeholder": { ru: "Например: Пошлая Молли, Скриптонит...", en: "e.g. Miyagi, Scriptonite..." },
+  "feedback.artist_hint": { ru: "необязательно", en: "optional" },
+  "feedback.send": { ru: "Отправить", en: "Send" },
+  "feedback.sending": { ru: "Отправляем...", en: "Sending..." },
+  "feedback.success": { ru: "Спасибо за обратную связь! 🙌", en: "Thanks for your feedback! 🙌" },
+  "feedback.error": { ru: "Не удалось отправить. Попробуйте позже.", en: "Failed to send. Please try later." },
+  "feedback.close": { ru: "Закрыть", en: "Close" },
+  "feedback.required": { ru: "Обязательное поле", en: "Required field" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

@@ -159,6 +159,18 @@ const translations = {
   // CIS-артисты
   "section.cis_artists": { ru: "Русскоязычные артисты", en: "Russian-speaking artists" },
 
+  // Карта мира
+  "nav.map": { ru: "🗺️ Карта", en: "🗺️ Map" },
+  "map.title": { ru: "Карта концертов", en: "Concert map" },
+  "map.subtitle": {
+    ru: "Цвет страны показывает, нужна ли виза для выбранного паспорта. Числа — количество концертов.",
+    en: "Country color shows visa requirements for the selected passport. Numbers show concert counts.",
+  },
+  "map.soon": { ru: "Скоро выступят", en: "Performing soon" },
+  "map.no_concerts": { ru: "Концертов пока нет", en: "No concerts yet" },
+  "map.hint": { ru: "Колёсико мыши — зум, перетаскивание — перемещение", en: "Scroll to zoom, drag to pan" },
+  "map.reset": { ru: "Сбросить", en: "Reset" },
+
   // Форма обратной связи
   "feedback.button": { ru: "Обратная связь", en: "Feedback" },
   "feedback.title": { ru: "Обратная связь", en: "Feedback" },

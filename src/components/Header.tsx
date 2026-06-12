@@ -19,6 +19,12 @@ export default function Header() {
               Rave<span className="text-orange-500">Pass</span>
             </a>
             <span className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:inline">{t("header.subtitle", lang)}</span>
+            <a
+              href="/map"
+              className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-1 transition-colors"
+            >
+              {t("nav.map", lang)}
+            </a>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">

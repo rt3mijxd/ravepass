@@ -6,6 +6,7 @@ import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
+import ArtistCardSkeleton from "@/components/ArtistCardSkeleton";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
@@ -196,8 +197,10 @@ export default function HomePage() {
         </h2>
 
         {loading && (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 dark:border-zinc-600 border-t-orange-500" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ArtistCardSkeleton key={i} />
+            ))}
           </div>
         )}
 

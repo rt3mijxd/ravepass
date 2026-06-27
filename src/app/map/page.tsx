@@ -230,9 +230,7 @@ export default function MapPage() {
         className="relative bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden select-none"
       >
         {loading ? (
-          <div className="flex justify-center items-center" style={{ aspectRatio: `${MAP_W}/${MAP_H}` }}>
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 dark:border-zinc-600 border-t-orange-500" />
-          </div>
+          <div className="skeleton w-full" style={{ aspectRatio: `${MAP_W}/${MAP_H}` }} />
         ) : (
           <svg
             ref={svgRef}

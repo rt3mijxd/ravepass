@@ -187,13 +187,36 @@ export async function searchEventsByArtist(
   return allConcerts;
 }
 
-// Топовые артисты — их концерты показываем первыми
+// Топовые мировые артисты — их концерты тянутся из Ticketmaster (реальные даты)
+// и показываются первыми. Расширенный список для широкого охвата.
 const TOP_ARTISTS = [
+  // Поп
   "Coldplay", "The Weeknd", "Ed Sheeran", "Dua Lipa", "Taylor Swift",
-  "Billie Eilish", "Imagine Dragons", "Rammstein", "Arctic Monkeys", "Muse",
-  "Metallica", "Kendrick Lamar", "Post Malone", "Twenty One Pilots", "Gorillaz",
-  "Radiohead", "Tame Impala", "Red Hot Chili Peppers", "Depeche Mode", "Beyoncé",
-  "The Killers", "Lana Del Rey", "Hozier", "Sam Smith", "Doja Cat",
+  "Billie Eilish", "Bruno Mars", "Harry Styles", "Olivia Rodrigo", "Sabrina Carpenter",
+  "Charli XCX", "Lana Del Rey", "Sam Smith", "Doja Cat", "Shawn Mendes",
+  "Camila Cabello", "Katy Perry", "Lady Gaga", "Justin Timberlake", "Pink",
+  "Adele", "Lorde", "Tate McRae", "Chappell Roan", "Troye Sivan",
+  // Рок / альтернатива
+  "Imagine Dragons", "Arctic Monkeys", "Muse", "Radiohead", "Tame Impala",
+  "Red Hot Chili Peppers", "The Killers", "Hozier", "Twenty One Pilots", "Foo Fighters",
+  "Pearl Jam", "Green Day", "The 1975", "Florence + The Machine", "Royal Blood",
+  "Queens of the Stone Age", "The Smashing Pumpkins", "Pixies", "Interpol", "Placebo",
+  // Метал
+  "Metallica", "Rammstein", "System of a Down", "Slipknot", "Iron Maiden",
+  "Tool", "Avenged Sevenfold", "Ghost", "Gojira", "Bring Me The Horizon",
+  // Хип-хоп / R&B
+  "Kendrick Lamar", "Post Malone", "Beyoncé", "Drake", "Travis Scott",
+  "Tyler, The Creator", "A$AP Rocky", "21 Savage", "Megan Thee Stallion", "SZA",
+  "Frank Ocean", "Childish Gambino", "Nicki Minaj", "Cardi B", "J. Cole",
+  // Электроника / танцевальное
+  "Gorillaz", "Depeche Mode", "The Chemical Brothers", "Disclosure", "ODESZA",
+  "Fred again..", "Calvin Harris", "David Guetta", "Swedish House Mafia", "Eric Prydz",
+  "Bicep", "Boys Noize", "Justice", "The Prodigy", "Underworld",
+  // Латино / мировые
+  "Bad Bunny", "Rosalía", "Karol G", "Rauw Alejandro", "Peso Pluma",
+  // Инди / прочее
+  "The National", "Bon Iver", "Vampire Weekend", "Glass Animals", "alt-J",
+  "Phoenix", "Two Door Cinema Club", "Foals", "LCD Soundsystem", "Caribou",
 ];
 
 // Набор для быстрой проверки (в нижнем регистре)
@@ -214,7 +237,9 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
 
   for (const batch of artistBatches) {
     const results = await Promise.allSettled(
-      batch.map((name) => searchEventsByArtist(name, { size: 200 }))
+      // 1 страница (200 событий) на артиста — для главной этого достаточно,
+      // а число запросов к TM остаётся в пределах лимита
+      batch.map((name) => searchEventsByArtist(name, { size: 200, maxPages: 1 }))
     );
     for (const result of results) {
       if (result.status === "fulfilled") {

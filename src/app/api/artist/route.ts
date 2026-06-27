@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
-import { searchCisConcerts, isCisArtist, getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { searchCisConcerts, getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { filterUpcoming } from "@/lib/dates";
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9а-яё]+/g, "-").replace(/(^-|-$)/g, "");
@@ -14,36 +15,46 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const requestedSlug = slugify(name);
+
     // Ищем в Ticketmaster
     const tmConcerts = await searchEventsByArtist(name);
 
-    // Ищем в CIS-данных (по имени или slug)
-    let cisConcerts = searchCisConcerts(name);
+    // CIS-данные: сначала по slug (URL вида /artist/little-big), затем по имени
+    let cisConcerts = getCisConcertsByArtistSlug(requestedSlug);
     if (cisConcerts.length === 0) {
-      // Пробуем поиск по slug (для URL типа /artist/poshlaya-molly)
-      const slug = slugify(name);
-      cisConcerts = getCisConcertsByArtistSlug(slug);
+      cisConcerts = searchCisConcerts(name);
     }
 
-    // Объединяем результаты
-    const rawConcerts = [...tmConcerts, ...cisConcerts];
+    const merged = [...tmConcerts, ...cisConcerts];
+
+    // TM по ключевому слову может вернуть фестивали, где артист лишь в лайнапе
+    // (напр. "Little Big" → "Down the Rabbit Hole"). Если есть точные совпадения
+    // по slug артиста — оставляем только их, чтобы не было чужих событий.
+    const exact = merged.filter((c) => c.artist.slug === requestedSlug);
+    const chosen = exact.length > 0 ? exact : merged;
 
     // Дедупликация: убираем концерты с одинаковым городом и датой
-    const dedupMap = new Map<string, typeof rawConcerts[0]>();
-    for (const c of rawConcerts) {
+    const dedupMap = new Map<string, typeof chosen[0]>();
+    for (const c of chosen) {
       const key = `${c.city}|${c.date}`;
       if (!dedupMap.has(key)) {
         dedupMap.set(key, c);
       }
     }
-    const concerts = Array.from(dedupMap.values());
+    // Скрываем прошедшие концерты и сортируем по дате
+    const concerts = filterUpcoming(Array.from(dedupMap.values()))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Идентификация артиста: предпочитаем концерт с точным совпадением slug
+    const identity = concerts.find((c) => c.artist.slug === requestedSlug) ?? concerts[0];
 
     return NextResponse.json({
-      artist: concerts.length > 0
+      artist: identity
         ? {
-            name: concerts[0].artist.name,
-            imageUrl: concerts[0].artist.imageUrl,
-            genre: concerts[0].artist.genre,
+            name: identity.artist.name,
+            imageUrl: identity.artist.imageUrl,
+            genre: identity.artist.genre,
           }
         : null,
       concerts,

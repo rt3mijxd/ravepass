@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchFeaturedConcerts, searchEventsByCountry } from "@/lib/ticketmaster";
 import { mockConcerts } from "@/data/concerts";
 import { cisConcerts } from "@/data/cis-artists";
+import { filterUpcoming } from "@/lib/dates";
 
 export const revalidate = 3600; // кэш на 1 час
 
@@ -24,13 +25,16 @@ export async function GET(request: NextRequest) {
       concerts = [...concerts, ...cisConcerts];
     }
 
+    // Скрываем прошедшие концерты
+    concerts = filterUpcoming(concerts);
+
     // Фолбэк на моковые данные + CIS если API недоступен или нет ключа
     if (concerts.length === 0) {
-      return NextResponse.json([...mockConcerts, ...cisConcerts]);
+      return NextResponse.json(filterUpcoming([...mockConcerts, ...cisConcerts]));
     }
 
     return NextResponse.json(concerts);
   } catch {
-    return NextResponse.json([...mockConcerts, ...cisConcerts]);
+    return NextResponse.json(filterUpcoming([...mockConcerts, ...cisConcerts]));
   }
 }

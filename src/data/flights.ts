@@ -124,6 +124,7 @@ const cityToAirport: Record<string, string> = {
   "Sofia": "SOF", "Zagreb": "ZAG",
   "Bratislava": "BTS", "Ljubljana": "LJU",
   "Vilnius": "VNO", "Riga": "RIX", "Tallinn": "TLL",
+  "Chișinău": "KIV", "Chisinau": "KIV", "Кишинёв": "KIV", "Кишинев": "KIV",
 
   // Северная Америка
   "New York": "NYC", "Los Angeles": "LAX", "Chicago": "CHI",

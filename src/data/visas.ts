@@ -1,6 +1,28 @@
 import type { CorePassportCode, VisaStatus } from "@/types";
+import { visaMatrix } from "@/data/visa-matrix";
 
-export const VISA_LAST_UPDATED = "2026-05-22";
+export const VISA_LAST_UPDATED = "2026-02-17";
+
+// Расшифровка кода из визовой матрицы (F/A/E/R + срок) в наш VisaStatus
+function decodeMatrixCode(code: string): { status: VisaStatus; days: number | null } {
+  const letter = code[0];
+  const days = code.length > 1 ? parseInt(code.slice(1), 10) : null;
+  switch (letter) {
+    case "F": return { status: "visa_free", days: Number.isNaN(days as number) ? null : days };
+    case "A": return { status: "visa_on_arrival", days: null };
+    case "E": return { status: "evisa", days: null };
+    default: return { status: "visa_required", days: null };
+  }
+}
+
+// Склонение слова «день» для русского срока пребывания
+function daysRu(n: number): string {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return `${n} дней`;
+  if (mod10 === 1) return `${n} день`;
+  if (mod10 >= 2 && mod10 <= 4) return `${n} дня`;
+  return `${n} дней`;
+}
 
 // Основная таблица для 4 детализированных паспортов (RU, AM, GE, KZ)
 export const visaData: Record<string, Record<CorePassportCode, VisaStatus>> = {
@@ -246,27 +268,41 @@ export function getVisaStatus(countryCode: string, passport: string): VisaStatus
   // 1. Свой паспорт = своя страна — виза не нужна
   if (countryCode === passport) return "visa_free";
 
-  // 2. Проверяем основную таблицу (для RU, AM, GE, KZ)
+  // 2. Основной источник — визовая матрица (Passport Index, 199×199)
+  const code = visaMatrix[passport]?.[countryCode];
+  if (code) return decodeMatrixCode(code).status;
+
+  // 3. Фолбэк: ручная таблица для RU/AM/GE/KZ
   const corePassport = passport as CorePassportCode;
   const coreResult = visaData[countryCode]?.[corePassport];
   if (coreResult) return coreResult;
 
-  // 3. Проверяем расширенную таблицу
+  // 4. Фолбэк: расширенная ручная таблица
   const extData = extendedVisaData[passport];
   if (extData) {
     if (extData[countryCode]) return extData[countryCode];
     if (extData._default) return extData._default as VisaStatus;
   }
 
-  // 4. Дефолт: если данных нет — предполагаем что виза нужна (безопаснее)
+  // 5. Дефолт: если данных нет — предполагаем что виза нужна (безопаснее)
   return "visa_required";
 }
 
 /**
- * Получить детали визы (срок пребывания)
+ * Получить детали визы (срок пребывания).
+ * Сначала кураторские строки (красивые формулировки вроде «90/180 дней»),
+ * затем срок из визовой матрицы.
  */
 export function getVisaDetails(countryCode: string, passport: string): string | null {
-  return visaDetails[countryCode]?.[passport] ?? null;
+  const curated = visaDetails[countryCode]?.[passport];
+  if (curated) return curated;
+
+  const code = visaMatrix[passport]?.[countryCode];
+  if (code) {
+    const { status, days } = decodeMatrixCode(code);
+    if (status === "visa_free" && days != null) return daysRu(days);
+  }
+  return null;
 }
 
 export function isVisaFree(status: VisaStatus): boolean {

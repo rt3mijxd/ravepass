@@ -64,7 +64,7 @@ export default function MapPage() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState("RU");
-  const [hovered, setHovered] = useState<{ a2: string; name: string; x: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState<{ id: string; a2: string; name: string; x: number; y: number } | null>(null);
   const [tf, setTf] = useState({ k: 1, x: 0, y: 0 });
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -165,12 +165,13 @@ export default function MapPage() {
     dragRef.current = null;
   };
 
-  const handleHover = (e: React.MouseEvent, a2: string, fallbackName: string) => {
+  const handleHover = (e: React.MouseEvent, id: string, a2: string, fallbackName: string) => {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const name = lang === "ru" ? (countryNames[a2] ?? fallbackName) : fallbackName;
+    const name = (lang === "ru" && a2 && countryNames[a2]) ? countryNames[a2] : fallbackName;
     setHovered({
+      id,
       a2,
       name,
       x: Math.min(e.clientX - rect.left + 12, rect.width - 230),
@@ -191,8 +192,8 @@ export default function MapPage() {
     setTf({ k: nk, x: cx - ((cx - x) * nk) / k, y: cy - ((cy - y) * nk) / k });
   };
 
-  const hoveredStats = hovered ? countryStats.get(hovered.a2) : null;
-  const hoveredVisa = hovered ? getVisaStatus(hovered.a2, passport) : null;
+  const hoveredStats = hovered?.a2 ? countryStats.get(hovered.a2) : null;
+  const hoveredVisa = hovered?.a2 ? getVisaStatus(hovered.a2, passport) : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
@@ -244,21 +245,24 @@ export default function MapPage() {
           >
             <g transform={`translate(${tf.x},${tf.y}) scale(${tf.k})`}>
               {features.map((f, i) => {
-                const a2 = numericToAlpha2[Number(f.id)];
+                const fid = `${f.id}-${i}`;
+                const a2 = numericToAlpha2[Number(f.id)] ?? "";
                 const stats = a2 ? countryStats.get(a2) : undefined;
-                const visa = a2 ? getVisaStatus(a2, passport) : "visa_required";
-                const isHome = a2 === passport;
-                const isHovered = hovered?.a2 === a2;
+                const isHome = !!a2 && a2 === passport;
+                const isHovered = hovered?.id === fid;
+                const name = f.properties?.name ?? a2 ?? "";
                 const d = path(f) ?? "";
+                // Цвет: серый — свой паспорт; по визе — если страна известна; иначе нейтральный
+                const fill = isHome ? "#71717a" : a2 ? visaColors[getVisaStatus(a2, passport)] : "#52525b";
                 return (
                   <path
-                    key={`${f.id}-${i}`}
+                    key={fid}
                     d={d}
-                    fill={isHome ? "#71717a" : visaColors[visa]}
-                    fillOpacity={isHome ? 0.5 : isHovered ? 0.95 : stats ? 0.8 : 0.18}
+                    fill={fill}
+                    fillOpacity={isHome ? 0.5 : isHovered ? 0.95 : stats ? 0.8 : a2 ? 0.18 : 0.1}
                     strokeWidth={0.5 / tf.k}
                     className="stroke-white dark:stroke-zinc-950 transition-[fill-opacity] duration-100"
-                    onMouseMove={a2 ? (e) => handleHover(e, a2, f.properties?.name ?? a2) : undefined}
+                    onMouseMove={(e) => handleHover(e, fid, a2, name)}
                     onMouseLeave={() => setHovered(null)}
                   />
                 );

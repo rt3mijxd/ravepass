@@ -172,7 +172,16 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
               {pluralizeI18n(stats.total, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
             </p>
           </div>
-          <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-col justify-center text-center sm:flex-1">
+          <button
+            type="button"
+            onClick={() => setVisaFreeOnly((v) => !v)}
+            title={t("filter.visa_free", lang)}
+            className={`rounded-xl border p-4 flex flex-col justify-center text-center sm:flex-1 transition-colors cursor-pointer ${
+              visaFreeOnly
+                ? "bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/40"
+                : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/40"
+            }`}
+          >
             <p className={`text-3xl font-bold ${stats.visaFree > 0 ? "text-emerald-400" : "text-red-400"}`}>
               {stats.visaFree}
             </p>
@@ -181,7 +190,10 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
                 ? `${pluralizeI18n(stats.visaFree, lang, "доступен", "доступно", "доступно", "available", "available")} ${t("artist.available_visa_free", lang)}`
                 : t("artist.no_visa_free", lang)}
             </p>
-          </div>
+            <p className="text-[10px] text-emerald-500/80 mt-1.5">
+              {visaFreeOnly ? `✓ ${t("filter.visa_free", lang)}` : t("filter.visa_free", lang)}
+            </p>
+          </button>
         </div>
 
         {/* Мини-карта стран выступлений */}

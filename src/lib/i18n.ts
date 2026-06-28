@@ -70,6 +70,7 @@ const translations = {
 
   // Поиск
   "search.placeholder": { ru: "Найти артиста...", en: "Search artist..." },
+  "lucky.button": { ru: "Мне повезёт", en: "I'm feeling lucky" },
 
   // Фильтры
   "filter.passport": { ru: "Паспорт", en: "Passport" },

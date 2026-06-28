@@ -116,26 +116,45 @@ export default function HomePage() {
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
   const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
 
+  const feelingLucky = () => {
+    // Случайный из топовых артистов (отсортированы по популярности)
+    const pool = artistGroups.slice(0, 25);
+    if (pool.length === 0) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    window.location.href = `/artist/${pick.slug}`;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
-      {/* Поиск */}
-      <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("search.placeholder", lang)}
-          className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        />
-        {searchQuery && (
-          <button onClick={() => setSearchQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
-            ✕
-          </button>
-        )}
+      {/* Поиск + «Мне повезёт» */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t("search.placeholder", lang)}
+            className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
+              ✕
+            </button>
+          )}
+        </div>
+        <button
+          onClick={feelingLucky}
+          disabled={loading || artistGroups.length === 0}
+          title={t("lucky.button", lang)}
+          className="flex-shrink-0 flex items-center gap-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium hover:border-orange-500 hover:text-orange-500 dark:hover:text-orange-400 disabled:opacity-50 disabled:hover:border-zinc-300 dark:disabled:hover:border-zinc-800 transition-colors"
+        >
+          <span className="text-base">🎲</span>
+          <span className="hidden sm:inline">{t("lucky.button", lang)}</span>
+        </button>
       </div>
 
       {/* Фильтры */}

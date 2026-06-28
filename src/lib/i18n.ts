@@ -95,6 +95,7 @@ const translations = {
 
   // Секции
   "section.popular": { ru: "Популярные направления", en: "Popular destinations" },
+  "section.on_tour": { ru: "Сейчас в туре", en: "On tour now" },
   "section.concerts": { ru: "Концерты", en: "Concerts" },
   "section.all_concerts": { ru: "Все концерты", en: "All concerts" },
 

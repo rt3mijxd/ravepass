@@ -223,12 +223,14 @@ export default function MapPage() {
         {t("nav.back_home", lang)}
       </a>
 
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("map.title", lang)}</h1>
-          <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 max-w-xl">{t("map.subtitle", lang)}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 w-full sm:w-[34rem]">
+      <div>
+        <h1 className="text-2xl font-bold">{t("map.title", lang)}</h1>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 max-w-xl">{t("map.subtitle", lang)}</p>
+      </div>
+
+      {/* Фильтры в один ряд над картой */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:max-w-md sm:flex-1">
           <SearchableSelect
             label={t("filter.passport", lang)}
             options={passportOpts}
@@ -244,17 +246,7 @@ export default function MapPage() {
             searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."}
           />
         </div>
-      </div>
-
-      {/* Легенда + фильтры */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-        {(Object.keys(visaColors) as VisaStatus[]).map((status) => (
-          <span key={status} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: visaColors[status] }} />
-            {t(`visa.${status}` as Parameters<typeof t>[0], lang)}
-          </span>
-        ))}
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-4 text-sm sm:pb-2.5">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <div className="relative">
               <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
@@ -391,6 +383,17 @@ export default function MapPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Легенда под картой */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        {(Object.keys(visaColors) as VisaStatus[]).map((status) => (
+          <span key={status} className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: visaColors[status] }} />
+            {t(`visa.${status}` as Parameters<typeof t>[0], lang)}
+          </span>
+        ))}
+        <span className="text-zinc-400 dark:text-zinc-500 ml-auto hidden sm:inline">{t("map.hint", lang)}</span>
       </div>
 
       {/* Список концертов выбранной страны */}

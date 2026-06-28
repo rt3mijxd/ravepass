@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
+import { track } from "@vercel/analytics";
 import { getVisaStatus, isVisaFree, getVisaDetails, VISA_LAST_UPDATED } from "@/data/visas";
 import { findFlightRoute, getAviasalesUrl } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -167,10 +168,12 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
       {/* Кнопки */}
       <div className="flex flex-col sm:flex-row gap-3">
         <a href={concert.ticketUrl} target="_blank" rel="noopener noreferrer"
+          onClick={() => track("buy_tickets", { artist: concert.artist.name, city: concert.city, country: concert.countryCode })}
           className="flex-1 text-center bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-xl transition-colors">
           {t("concert.buy_tickets", lang)}
         </a>
         <a href={getAviasalesUrl(originCity, concert.city, concert.date)} target="_blank" rel="noopener noreferrer"
+          onClick={() => track("find_flights", { origin: originCity, city: concert.city, country: concert.countryCode })}
           className="flex-1 text-center bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 font-medium py-3 rounded-xl transition-colors">
           {t("concert.find_flights", lang)}
         </a>

@@ -178,6 +178,10 @@ const translations = {
   // Мини-карта на странице артиста
   "minimap.countries": { ru: "Страны выступлений", en: "Performance countries" },
 
+  // 404
+  "notfound.title": { ru: "Страница не найдена", en: "Page not found" },
+  "notfound.text": { ru: "Кажется, такой страницы не существует.", en: "Looks like this page doesn't exist." },
+
   // Форма обратной связи
   "feedback.button": { ru: "Обратная связь", en: "Feedback" },
   "feedback.title": { ru: "Обратная связь", en: "Feedback" },

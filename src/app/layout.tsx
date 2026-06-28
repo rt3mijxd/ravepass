@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { SettingsProvider } from "@/components/SettingsContext";
 import Header from "@/components/Header";
@@ -10,11 +11,29 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass-two.vercel.app";
+const title = "RavePass — концерты за рубежом";
+const description =
+  "Агрегатор концертов мировых артистов за рубежом для жителей России и СНГ. Фильтрация по визам и прямым рейсам.";
+
 export const metadata: Metadata = {
-  title: "RavePass — концерты за рубежом",
-  description: "Агрегатор концертов мировых артистов за рубежом для жителей России и СНГ. Фильтрация по визам и прямым рейсам.",
-  icons: {
-    icon: "/favicon.svg",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  keywords: ["концерты за рубежом", "концерты без визы", "афиша", "RavePass", "концерты СНГ", "туры артистов"],
+  icons: { icon: "/favicon.svg" },
+  openGraph: {
+    title,
+    description,
+    url: siteUrl,
+    siteName: "RavePass",
+    type: "website",
+    locale: "ru_RU",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
   },
 };
 
@@ -42,6 +61,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <Footer />
         </SettingsProvider>
+        <Analytics />
       </body>
     </html>
   );

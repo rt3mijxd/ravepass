@@ -160,7 +160,7 @@ const translations = {
   "section.cis_artists": { ru: "Русскоязычные артисты", en: "Russian-speaking artists" },
 
   // Карта мира
-  "nav.map": { ru: "🗺️ Карта", en: "🗺️ Map" },
+  "nav.map": { ru: "🗺️ Карта концертов", en: "🗺️ Concert map" },
   "map.title": { ru: "Карта концертов", en: "Concert map" },
   "map.subtitle": {
     ru: "Цвет страны показывает, нужна ли виза для выбранного паспорта. Числа — количество концертов.",
@@ -170,6 +170,13 @@ const translations = {
   "map.no_concerts": { ru: "Концертов пока нет", en: "No concerts yet" },
   "map.hint": { ru: "Колёсико мыши — зум, перетаскивание — перемещение", en: "Scroll to zoom, drag to pan" },
   "map.reset": { ru: "Сбросить", en: "Reset" },
+  "map.click_hint": { ru: "Нажмите на страну, чтобы увидеть её концерты", en: "Click a country to see its concerts" },
+  "map.visa_free_only": { ru: "Только без визы", en: "Visa-free only" },
+  "map.concerts_in": { ru: "Концерты в стране", en: "Concerts in" },
+  "map.close": { ru: "Закрыть", en: "Close" },
+
+  // Мини-карта на странице артиста
+  "minimap.countries": { ru: "Страны выступлений", en: "Performance countries" },
 
   // Форма обратной связи
   "feedback.button": { ru: "Обратная связь", en: "Feedback" },

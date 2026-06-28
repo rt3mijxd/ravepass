@@ -5,6 +5,7 @@ import Image from "next/image";
 import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
+import ArtistMiniMap from "@/components/ArtistMiniMap";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
@@ -59,6 +60,12 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
     return { total, visaFree, firstDate, lastDate };
   }, [concerts, passport]);
+
+  // Уникальные страны выступлений для мини-карты
+  const countryCodes = useMemo(
+    () => Array.from(new Set(concerts.map((c) => c.countryCode).filter(Boolean))),
+    [concerts],
+  );
 
   const displayName = artistInfo?.name || unslugify(slug);
 
@@ -142,6 +149,9 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
           </p>
         </div>
       </div>
+
+      {/* Мини-карта стран выступлений */}
+      <ArtistMiniMap countryCodes={countryCodes} lang={lang} />
 
       {/* Список концертов */}
       <section className="space-y-3">

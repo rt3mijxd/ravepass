@@ -6,7 +6,8 @@ import { feature } from "topojson-client";
 import type { FeatureCollection, Feature, Geometry } from "geojson";
 import type { Topology } from "topojson-specification";
 import { mockConcerts } from "@/data/concerts";
-import { getVisaStatus, countryNames } from "@/data/visas";
+import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
+import { numericToAlpha2, WORLD_ATLAS_URL } from "@/lib/geo";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
@@ -15,35 +16,6 @@ import type { Concert, VisaStatus } from "@/types";
 
 const MAP_W = 980;
 const MAP_H = 500;
-
-// ISO 3166-1 numeric → alpha-2 (world-atlas использует числовые ID)
-const numericToAlpha2: Record<number, string> = {
-  4: "AF", 8: "AL", 12: "DZ", 20: "AD", 24: "AO", 31: "AZ", 32: "AR", 36: "AU",
-  40: "AT", 44: "BS", 48: "BH", 50: "BD", 51: "AM", 56: "BE", 64: "BT", 68: "BO",
-  70: "BA", 72: "BW", 76: "BR", 84: "BZ", 90: "SB", 96: "BN", 100: "BG", 104: "MM",
-  108: "BI", 112: "BY", 116: "KH", 120: "CM", 124: "CA", 140: "CF", 144: "LK",
-  148: "TD", 152: "CL", 156: "CN", 158: "TW", 170: "CO", 178: "CG", 180: "CD",
-  188: "CR", 191: "HR", 192: "CU", 196: "CY", 203: "CZ", 208: "DK", 214: "DO",
-  218: "EC", 222: "SV", 226: "GQ", 231: "ET", 232: "ER", 233: "EE", 242: "FJ",
-  246: "FI", 250: "FR", 266: "GA", 268: "GE", 270: "GM", 276: "DE", 288: "GH",
-  300: "GR", 304: "GL", 320: "GT", 324: "GN", 328: "GY", 332: "HT", 340: "HN",
-  348: "HU", 352: "IS", 356: "IN", 360: "ID", 364: "IR", 368: "IQ", 372: "IE",
-  376: "IL", 380: "IT", 384: "CI", 388: "JM", 392: "JP", 398: "KZ", 400: "JO",
-  404: "KE", 408: "KP", 410: "KR", 414: "KW", 417: "KG", 418: "LA", 422: "LB",
-  426: "LS", 428: "LV", 430: "LR", 434: "LY", 440: "LT", 442: "LU", 450: "MG",
-  454: "MW", 458: "MY", 466: "ML", 478: "MR", 484: "MX", 496: "MN", 498: "MD",
-  499: "ME", 504: "MA", 508: "MZ", 512: "OM", 516: "NA", 524: "NP", 528: "NL",
-  540: "NC", 548: "VU", 554: "NZ", 558: "NI", 562: "NE", 566: "NG", 578: "NO",
-  586: "PK", 591: "PA", 598: "PG", 600: "PY", 604: "PE", 608: "PH", 616: "PL",
-  620: "PT", 624: "GW", 626: "TL", 630: "PR", 634: "QA", 642: "RO", 643: "RU",
-  646: "RW", 682: "SA", 686: "SN", 688: "RS", 694: "SL", 702: "SG", 703: "SK",
-  704: "VN", 705: "SI", 706: "SO", 710: "ZA", 716: "ZW", 724: "ES", 728: "SS",
-  729: "SD", 732: "EH", 740: "SR", 748: "SZ", 752: "SE", 756: "CH", 760: "SY", 762: "TJ",
-  204: "BJ", 262: "DJ", 238: "FK",
-  764: "TH", 768: "TG", 780: "TT", 784: "AE", 788: "TN", 792: "TR", 795: "TM",
-  800: "UG", 804: "UA", 807: "MK", 818: "EG", 826: "GB", 834: "TZ", 840: "US",
-  854: "BF", 858: "UY", 860: "UZ", 862: "VE", 887: "YE", 894: "ZM",
-};
 
 const visaColors: Record<VisaStatus, string> = {
   visa_free: "#10b981",      // emerald
@@ -65,25 +37,28 @@ export default function MapPage() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState("RU");
+  const [visaFreeOnly, setVisaFreeOnly] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{ id: string; a2: string; name: string; x: number; y: number } | null>(null);
   const [tf, setTf] = useState({ k: 1, x: 0, y: 0 });
 
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const tfRef = useRef(tf);
   tfRef.current = tf;
-  const dragRef = useRef<{ startX: number; startY: number; tx: number; ty: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; tx: number; ty: number } | null>(null);
+  const movedRef = useRef(false);
 
   const passportOpts = getPassportOptions(lang);
 
   // Загружаем географию и концерты параллельно
   useEffect(() => {
     Promise.all([
-      fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+      fetch(WORLD_ATLAS_URL)
         .then((res) => res.json())
         .then((topo: Topology) => {
           const fc = feature(topo, topo.objects.countries) as unknown as FeatureCollection<Geometry, { name?: string }>;
-          // Антарктида не нужна
           setFeatures(fc.features.filter((f) => Number(f.id) !== 10));
         }),
       fetch("/api/concerts")
@@ -122,6 +97,31 @@ export default function MapPage() {
     return map;
   }, [concerts]);
 
+  // Учитываем фильтр «только без визы»
+  const activeStats = useMemo(() => {
+    if (!visaFreeOnly) return countryStats;
+    const m = new Map<string, CountryStats>();
+    for (const [a2, s] of countryStats) {
+      if (isVisaFree(getVisaStatus(a2, passport))) m.set(a2, s);
+    }
+    return m;
+  }, [countryStats, visaFreeOnly, passport]);
+
+  // Концерты выбранной страны, сгруппированные по артистам
+  const selectedGroups = useMemo(() => {
+    if (!selected) return [];
+    const inCountry = concerts
+      .filter((c) => c.countryCode === selected)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const map = new Map<string, { name: string; slug: string; concerts: Concert[] }>();
+    for (const c of inCountry) {
+      let g = map.get(c.artist.slug);
+      if (!g) { g = { name: c.artist.name, slug: c.artist.slug, concerts: [] }; map.set(c.artist.slug, g); }
+      g.concerts.push(c);
+    }
+    return Array.from(map.values());
+  }, [concerts, selected]);
+
   // Зум колёсиком (non-passive, чтобы блокировать скролл страницы)
   useEffect(() => {
     const svg = svgRef.current;
@@ -129,13 +129,11 @@ export default function MapPage() {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
-      // Координаты курсора в системе viewBox
       const px = ((e.clientX - rect.left) / rect.width) * MAP_W;
       const py = ((e.clientY - rect.top) / rect.height) * MAP_H;
       const { k, x, y } = tfRef.current;
       const factor = e.deltaY < 0 ? 1.25 : 0.8;
       const nk = Math.min(12, Math.max(1, k * factor));
-      // Зумим к точке под курсором
       const nx = px - ((px - x) * nk) / k;
       const ny = py - ((py - y) * nk) / k;
       setTf(nk === 1 ? { k: 1, x: 0, y: 0 } : { k: nk, x: nx, y: ny });
@@ -146,7 +144,8 @@ export default function MapPage() {
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const { x, y } = tfRef.current;
-    dragRef.current = { startX: e.clientX, startY: e.clientY, tx: x, ty: y, moved: false };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, tx: x, ty: y };
+    movedRef.current = false;
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
 
@@ -158,7 +157,7 @@ export default function MapPage() {
     const rect = svg.getBoundingClientRect();
     const dx = ((e.clientX - drag.startX) / rect.width) * MAP_W;
     const dy = ((e.clientY - drag.startY) / rect.height) * MAP_H;
-    if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+    if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) > 4) movedRef.current = true;
     setTf({ k: tfRef.current.k, x: drag.tx + dx, y: drag.ty + dy });
   };
 
@@ -172,32 +171,49 @@ export default function MapPage() {
     const rect = container.getBoundingClientRect();
     const name = (lang === "ru" && a2 && countryNames[a2]) ? countryNames[a2] : fallbackName;
     setHovered({
-      id,
-      a2,
-      name,
+      id, a2, name,
       x: Math.min(e.clientX - rect.left + 12, rect.width - 230),
       y: Math.min(e.clientY - rect.top + 12, rect.height - 120),
     });
   };
 
+  // Зум к стране + выбор её для списка концертов
+  const selectCountry = (f: CountryFeature, a2: string) => {
+    if (!a2 || !activeStats.get(a2)) return;
+    const [[x0, y0], [x1, y1]] = path.bounds(f);
+    const w = Math.max(x1 - x0, 1);
+    const h = Math.max(y1 - y0, 1);
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    const k = Math.max(1, Math.min(8, 0.55 * Math.min(MAP_W / w, MAP_H / h)));
+    setTf({ k, x: MAP_W / 2 - cx * k, y: MAP_H / 2 - cy * k });
+    setSelected(a2);
+    setHovered(null);
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  };
+
   const zoomBy = (factor: number) => {
     const { k, x, y } = tfRef.current;
     const nk = Math.min(12, Math.max(1, k * factor));
-    if (nk === 1) {
-      setTf({ k: 1, x: 0, y: 0 });
-      return;
-    }
-    // Зумим к центру
+    if (nk === 1) { setTf({ k: 1, x: 0, y: 0 }); return; }
     const cx = MAP_W / 2;
     const cy = MAP_H / 2;
     setTf({ k: nk, x: cx - ((cx - x) * nk) / k, y: cy - ((cy - y) * nk) / k });
   };
 
-  const hoveredStats = hovered?.a2 ? countryStats.get(hovered.a2) : null;
+  const resetView = () => { setTf({ k: 1, x: 0, y: 0 }); setSelected(null); };
+
+  const hoveredStats = hovered?.a2 ? activeStats.get(hovered.a2) : null;
   const hoveredVisa = hovered?.a2 ? getVisaStatus(hovered.a2, passport) : null;
+  const selectedName = selected ? (lang === "ru" ? (countryNames[selected] ?? selected) : selected) : "";
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
+      {/* Назад */}
+      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+        {t("nav.back_home", lang)}
+      </a>
+
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("map.title", lang)}</h1>
@@ -214,15 +230,22 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Легенда */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+      {/* Легенда + фильтр */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         {(Object.keys(visaColors) as VisaStatus[]).map((status) => (
           <span key={status} className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: visaColors[status] }} />
             {t(`visa.${status}` as Parameters<typeof t>[0], lang)}
           </span>
         ))}
-        <span className="text-zinc-400 dark:text-zinc-500 ml-auto hidden sm:inline">{t("map.hint", lang)}</span>
+        <label className="flex items-center gap-2 cursor-pointer select-none ml-auto">
+          <div className="relative">
+            <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+            <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+          </div>
+          {t("map.visa_free_only", lang)}
+        </label>
       </div>
 
       {/* Карта */}
@@ -246,23 +269,26 @@ export default function MapPage() {
               {features.map((f, i) => {
                 const fid = `${f.id}-${i}`;
                 const a2 = numericToAlpha2[Number(f.id)] ?? "";
-                const stats = a2 ? countryStats.get(a2) : undefined;
+                const stats = a2 ? activeStats.get(a2) : undefined;
                 const isHome = !!a2 && a2 === passport;
                 const isHovered = hovered?.id === fid;
+                const isSelected = !!a2 && a2 === selected;
+                const dimmed = visaFreeOnly && !!a2 && !isVisaFree(getVisaStatus(a2, passport));
                 const name = f.properties?.name ?? a2 ?? "";
                 const d = path(f) ?? "";
-                // Цвет: серый — свой паспорт; по визе — если страна известна; иначе нейтральный
                 const fill = isHome ? "#71717a" : a2 ? visaColors[getVisaStatus(a2, passport)] : "#52525b";
+                const opacity = isHome ? 0.5 : dimmed ? 0.07 : isSelected ? 1 : isHovered ? 0.95 : stats ? 0.82 : a2 ? 0.18 : 0.1;
                 return (
                   <path
                     key={fid}
                     d={d}
                     fill={fill}
-                    fillOpacity={isHome ? 0.5 : isHovered ? 0.95 : stats ? 0.8 : a2 ? 0.18 : 0.1}
-                    strokeWidth={0.5 / tf.k}
-                    className="stroke-white dark:stroke-zinc-950 transition-[fill-opacity] duration-100"
+                    fillOpacity={opacity}
+                    strokeWidth={(isSelected ? 1.4 : 0.5) / tf.k}
+                    className={`${isSelected ? "stroke-zinc-900 dark:stroke-white" : "stroke-white dark:stroke-zinc-950"} transition-[fill-opacity] duration-100 ${stats ? "cursor-pointer" : ""}`}
                     onMouseMove={(e) => handleHover(e, fid, a2, name)}
                     onMouseLeave={() => setHovered(null)}
+                    onClick={() => { if (movedRef.current) return; selectCountry(f, a2); }}
                   />
                 );
               })}
@@ -270,7 +296,7 @@ export default function MapPage() {
               {/* Количество концертов */}
               {features.map((f, i) => {
                 const a2 = numericToAlpha2[Number(f.id)];
-                const stats = a2 ? countryStats.get(a2) : undefined;
+                const stats = a2 ? activeStats.get(a2) : undefined;
                 if (!stats) return null;
                 const [cx, cy] = path.centroid(f);
                 if (!isFinite(cx) || !isFinite(cy)) return null;
@@ -279,12 +305,8 @@ export default function MapPage() {
                   <g key={`badge-${f.id}-${i}`} pointerEvents="none">
                     <circle cx={cx} cy={cy} r={r} className="fill-zinc-900 dark:fill-zinc-100" fillOpacity={0.9} />
                     <text
-                      x={cx}
-                      y={cy}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize={stats.count > 99 ? 7 / tf.k : 9 / tf.k}
-                      fontWeight={600}
+                      x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                      fontSize={stats.count > 99 ? 7 / tf.k : 9 / tf.k} fontWeight={600}
                       className="fill-white dark:fill-zinc-900"
                     >
                       {stats.count}
@@ -294,6 +316,13 @@ export default function MapPage() {
               })}
             </g>
           </svg>
+        )}
+
+        {/* Подсказка про клик */}
+        {!loading && !selected && (
+          <div className="absolute top-3 left-3 text-xs text-zinc-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/80 backdrop-blur rounded-lg px-2.5 py-1 pointer-events-none">
+            {t("map.click_hint", lang)}
+          </div>
         )}
 
         {/* Тултип */}
@@ -329,30 +358,55 @@ export default function MapPage() {
         {/* Кнопки зума */}
         {!loading && (
           <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
-            <button
-              onClick={() => zoomBy(1.5)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-semibold"
-            >
-              +
-            </button>
-            <button
-              onClick={() => zoomBy(1 / 1.5)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-semibold"
-            >
-              −
-            </button>
-            {tf.k > 1 && (
-              <button
-                onClick={() => setTf({ k: 1, x: 0, y: 0 })}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-xs"
-                title={t("map.reset", lang)}
-              >
-                ⟲
-              </button>
+            <button onClick={() => zoomBy(1.5)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-semibold">+</button>
+            <button onClick={() => zoomBy(1 / 1.5)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-semibold">−</button>
+            {(tf.k > 1 || selected) && (
+              <button onClick={resetView} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-xs" title={t("map.reset", lang)}>⟲</button>
             )}
           </div>
         )}
       </div>
+
+      {/* Список концертов выбранной страны */}
+      {selected && (
+        <div ref={panelRef} className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-lg">
+              {t("map.concerts_in", lang)} {selectedName}
+              <span className="text-zinc-500 font-normal text-sm ml-2">
+                ({selectedGroups.reduce((s, g) => s + g.concerts.length, 0)})
+              </span>
+            </h2>
+            <button onClick={() => setSelected(null)} className="text-sm text-zinc-500 hover:text-orange-500 transition-colors">
+              {t("map.close", lang)} ✕
+            </button>
+          </div>
+
+          {selectedGroups.length === 0 ? (
+            <p className="text-sm text-zinc-400 dark:text-zinc-500">{t("map.no_concerts", lang)}</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {selectedGroups.map((g) => (
+                <div key={g.slug} className="bg-white dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
+                  <a href={`/artist/${g.slug}`} className="font-medium text-sm hover:text-orange-500 transition-colors">
+                    {g.name}
+                  </a>
+                  <div className="mt-1.5 space-y-1">
+                    {g.concerts.map((c) => (
+                      <a key={c.id} href={`/concert/${c.id}`} className="flex justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
+                        <span className="truncate">{c.city}{c.venue ? `, ${c.venue}` : ""}</span>
+                        <span className="flex-shrink-0">
+                          {new Date(c.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

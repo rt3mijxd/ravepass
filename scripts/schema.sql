@@ -23,8 +23,17 @@ create table if not exists subscriptions (
   unique (email, artist_slug)
 );
 
+-- Уже разосланные/учтённые концерты (чтобы не дублировать уведомления)
+create table if not exists seen_concerts (
+  concert_id text primary key,
+  artist_slug text not null,
+  first_seen_at timestamptz not null default now()
+);
+create index if not exists seen_concerts_artist_idx on seen_concerts (artist_slug);
+
 -- RLS: включаем, но НЕ создаём публичных политик.
 -- Запись идёт только с сервера через service_role (он обходит RLS),
 -- поэтому из браузера к этим таблицам доступа нет — данные защищены.
 alter table feedback enable row level security;
 alter table subscriptions enable row level security;
+alter table seen_concerts enable row level security;

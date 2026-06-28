@@ -6,6 +6,7 @@ import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
 import ArtistMiniMap from "@/components/ArtistMiniMap";
+import SubscribeForm from "@/components/SubscribeForm";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
@@ -238,14 +239,8 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
         })}
       </section>
 
-      {/* Уведомления */}
-      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 text-center space-y-3">
-        <p className="text-sm text-zinc-400">{t("concert.notify", lang)} {displayName}?</p>
-        <a href={`mailto:your@email.com?subject=${lang === "ru" ? "Уведомления" : "Notifications"}: ${displayName}&body=${lang === "ru" ? "Хочу получать уведомления о новых концертах" : "I want notifications about new concerts by"} ${displayName}`}
-          className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-medium px-6 py-2.5 rounded-xl transition-colors text-sm">
-          {t("concert.notify_btn", lang)}
-        </a>
-      </section>
+      {/* Подписка на уведомления */}
+      <SubscribeForm artistSlug={slug} artistName={displayName} />
     </div>
   );
 }

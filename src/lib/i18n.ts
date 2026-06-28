@@ -182,6 +182,25 @@ const translations = {
   "notfound.title": { ru: "Страница не найдена", en: "Page not found" },
   "notfound.text": { ru: "Кажется, такой страницы не существует.", en: "Looks like this page doesn't exist." },
 
+  // Подписка на уведомления
+  "subscribe.title": { ru: "Уведомлять о новых концертах?", en: "Get notified about new concerts?" },
+  "subscribe.subtitle": { ru: "Пришлём письмо, когда появятся новые даты за рубежом", en: "We'll email you when new dates abroad appear" },
+  "subscribe.placeholder": { ru: "Ваш email", en: "Your email" },
+  "subscribe.button": { ru: "Подписаться", en: "Subscribe" },
+  "subscribe.sending": { ru: "Отправляем...", en: "Sending..." },
+  "subscribe.check_email": { ru: "Почти готово! Проверьте почту и подтвердите подписку.", en: "Almost done! Check your email to confirm." },
+  "subscribe.already": { ru: "Вы уже подписаны на этого артиста 👍", en: "You're already subscribed 👍" },
+  "subscribe.invalid_email": { ru: "Введите корректный email", en: "Enter a valid email" },
+  "subscribe.error": { ru: "Не удалось подписаться. Попробуйте позже.", en: "Couldn't subscribe. Try again later." },
+
+  // Страница результата подписки
+  "subscribed.ok_title": { ru: "Подписка подтверждена! 🎉", en: "Subscription confirmed! 🎉" },
+  "subscribed.ok_text": { ru: "Будем присылать новые концерты артиста", en: "We'll send you new concerts by" },
+  "subscribed.error_title": { ru: "Ссылка недействительна", en: "Invalid link" },
+  "subscribed.error_text": { ru: "Возможно, подписка уже подтверждена или ссылка устарела.", en: "The link may be expired or already used." },
+  "subscribed.unsub_title": { ru: "Вы отписались", en: "You're unsubscribed" },
+  "subscribed.unsub_text": { ru: "Больше не будем присылать уведомления.", en: "We won't send you notifications anymore." },
+
   // Форма обратной связи
   "feedback.button": { ru: "Обратная связь", en: "Feedback" },
   "feedback.title": { ru: "Обратная связь", en: "Feedback" },

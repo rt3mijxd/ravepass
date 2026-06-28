@@ -11,7 +11,7 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass-two.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass.site";
 const title = "RavePass — концерты за рубежом";
 const description =
   "Агрегатор концертов мировых артистов за рубежом для жителей России и СНГ. Фильтрация по визам и прямым рейсам.";

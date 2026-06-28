@@ -3,7 +3,7 @@ import type { Concert } from "@/types";
 const BRAND = "#f97316";
 
 function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass-two.vercel.app";
+  return process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass.site";
 }
 
 function shell(inner: string): string {

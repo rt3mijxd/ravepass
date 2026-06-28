@@ -10,6 +10,7 @@ import ArtistCardSkeleton from "@/components/ArtistCardSkeleton";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { normalizeText } from "@/lib/slug";
+import { topArtistRank } from "@/data/topArtists";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
 import type { Concert, VisaStatus } from "@/types";
@@ -116,16 +117,19 @@ export default function HomePage() {
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
   const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
 
-  // Топ артистов в туре — по числу концертов, независимо от фильтров поиска
+  // Топовые мировые артисты в туре — берём из курируемого списка популярности
+  // (а не по числу концертов), отсекает трибьюты и случайные акты
   const topArtists = useMemo(() => {
-    const map = new Map<string, { name: string; slug: string; imageUrl: string; count: number }>();
+    const map = new Map<string, { name: string; slug: string; imageUrl: string; count: number; rank: number }>();
     for (const c of allConcerts) {
       const s = c.artist.slug;
+      const rank = topArtistRank.get(s);
+      if (rank === undefined) continue; // не из списка мировых звёзд — пропускаем
       let g = map.get(s);
-      if (!g) { g = { name: c.artist.name, slug: s, imageUrl: c.artist.imageUrl, count: 0 }; map.set(s, g); }
+      if (!g) { g = { name: c.artist.name, slug: s, imageUrl: c.artist.imageUrl, count: 0, rank }; map.set(s, g); }
       g.count++;
     }
-    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 12);
+    return Array.from(map.values()).sort((a, b) => a.rank - b.rank).slice(0, 12);
   }, [allConcerts]);
 
   const feelingLucky = () => {
@@ -169,6 +173,36 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* Топовые мировые артисты сейчас в туре */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3">🔥 {t("section.on_tour", lang)}</h2>
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          {loading
+            ? Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[72px] flex flex-col items-center gap-1.5">
+                  <div className="skeleton w-16 h-16 rounded-full" />
+                  <div className="skeleton h-3 w-14 rounded" />
+                  <div className="skeleton h-2.5 w-10 rounded" />
+                </div>
+              ))
+            : topArtists.map((a) => (
+                <a key={a.slug} href={`/artist/${a.slug}`}
+                  className="flex-shrink-0 w-[72px] text-center group">
+                  {a.imageUrl ? (
+                    <Image src={a.imageUrl} alt={a.name} width={64} height={64}
+                      className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-transparent group-hover:ring-orange-500 transition-all" unoptimized />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl ring-2 ring-transparent group-hover:ring-orange-500 transition-all">♪</div>
+                  )}
+                  <p className="text-xs mt-1.5 truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">{a.name}</p>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    {a.count} {pluralizeI18n(a.count, lang, "концерт", "концерта", "концертов", "show", "shows")}
+                  </p>
+                </a>
+              ))}
+        </div>
+      </section>
+
       {/* Фильтры */}
       <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-800 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -198,30 +232,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Сейчас в туре — топ артистов */}
-      {!loading && topArtists.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-3">🔥 {t("section.on_tour", lang)}</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {topArtists.map((a) => (
-              <a key={a.slug} href={`/artist/${a.slug}`}
-                className="flex-shrink-0 w-[72px] text-center group">
-                {a.imageUrl ? (
-                  <Image src={a.imageUrl} alt={a.name} width={64} height={64}
-                    className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-transparent group-hover:ring-orange-500 transition-all" unoptimized />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl ring-2 ring-transparent group-hover:ring-orange-500 transition-all">♪</div>
-                )}
-                <p className="text-xs mt-1.5 truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">{a.name}</p>
-                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                  {a.count} {pluralizeI18n(a.count, lang, "концерт", "концерта", "концертов", "show", "shows")}
-                </p>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Популярные направления */}
       <section>

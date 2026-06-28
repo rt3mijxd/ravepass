@@ -1,5 +1,6 @@
 import type { Concert } from "@/types";
 import { slugify } from "@/lib/slug";
+import { TOP_WORLD_ARTISTS } from "@/data/topArtists";
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 const API_KEY = process.env.TICKETMASTER_API_KEY || "";
@@ -184,37 +185,9 @@ export async function searchEventsByArtist(
   return allConcerts;
 }
 
-// Топовые мировые артисты — их концерты тянутся из Ticketmaster (реальные даты)
-// и показываются первыми. Расширенный список для широкого охвата.
-const TOP_ARTISTS = [
-  // Поп
-  "Coldplay", "The Weeknd", "Ed Sheeran", "Dua Lipa", "Taylor Swift",
-  "Billie Eilish", "Bruno Mars", "Harry Styles", "Olivia Rodrigo", "Sabrina Carpenter",
-  "Charli XCX", "Lana Del Rey", "Sam Smith", "Doja Cat", "Shawn Mendes",
-  "Camila Cabello", "Katy Perry", "Lady Gaga", "Justin Timberlake", "Pink",
-  "Adele", "Lorde", "Tate McRae", "Chappell Roan", "Troye Sivan",
-  // Рок / альтернатива
-  "Imagine Dragons", "Arctic Monkeys", "Muse", "Radiohead", "Tame Impala",
-  "Red Hot Chili Peppers", "The Killers", "Hozier", "Twenty One Pilots", "Foo Fighters",
-  "Pearl Jam", "Green Day", "The 1975", "Florence + The Machine", "Royal Blood",
-  "Queens of the Stone Age", "The Smashing Pumpkins", "Pixies", "Interpol", "Placebo",
-  // Метал
-  "Metallica", "Rammstein", "System of a Down", "Slipknot", "Iron Maiden",
-  "Tool", "Avenged Sevenfold", "Ghost", "Gojira", "Bring Me The Horizon",
-  // Хип-хоп / R&B
-  "Kendrick Lamar", "Post Malone", "Beyoncé", "Drake", "Travis Scott",
-  "Tyler, The Creator", "A$AP Rocky", "21 Savage", "Megan Thee Stallion", "SZA",
-  "Frank Ocean", "Childish Gambino", "Nicki Minaj", "Cardi B", "J. Cole",
-  // Электроника / танцевальное
-  "Gorillaz", "Depeche Mode", "The Chemical Brothers", "Disclosure", "ODESZA",
-  "Fred again..", "Calvin Harris", "David Guetta", "Swedish House Mafia", "Eric Prydz",
-  "Bicep", "Boys Noize", "Justice", "The Prodigy", "Underworld",
-  // Латино / мировые
-  "Bad Bunny", "Rosalía", "Karol G", "Rauw Alejandro", "Peso Pluma",
-  // Инди / прочее
-  "The National", "Bon Iver", "Vampire Weekend", "Glass Animals", "alt-J",
-  "Phoenix", "Two Door Cinema Club", "Foals", "LCD Soundsystem", "Caribou",
-];
+// Топовые мировые артисты — их концерты тянутся из Ticketmaster (реальные даты).
+// Список вынесен в общий модуль (используется и каруселью на главной).
+const TOP_ARTISTS = TOP_WORLD_ARTISTS;
 
 // Набор для быстрой проверки (в нижнем регистре)
 const topArtistSet = new Set(TOP_ARTISTS.map((a) => a.toLowerCase()));

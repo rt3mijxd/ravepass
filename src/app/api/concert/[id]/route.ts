@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mockConcerts } from "@/data/concerts";
 import { cisConcerts } from "@/data/cis-artists";
+import { slugify } from "@/lib/slug";
 
 const API_KEY = process.env.TICKETMASTER_API_KEY || "";
 
@@ -67,7 +68,7 @@ export async function GET(
       id,
       artist: {
         name: artistName,
-        slug: artistName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+        slug: slugify(artistName),
         imageUrl: img?.url ?? images[0]?.url ?? "",
         genre: genre === "Undefined" ? "" : (genre ?? ""),
       },

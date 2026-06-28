@@ -50,9 +50,9 @@ export default function ArtistMiniMap({ countryCodes, lang }: { countryCodes: st
     .filter((v, i, arr) => arr.indexOf(v) === i);
 
   return (
-    <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+    <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-semibold text-sm">{t("minimap.countries", lang)}</h2>
+        <h2 className="font-semibold text-xs text-zinc-600 dark:text-zinc-300">{t("minimap.countries", lang)}</h2>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {active.size} {pluralizeI18n(active.size, lang, "страна", "страны", "стран", "country", "countries")}
         </span>
@@ -80,9 +80,9 @@ export default function ArtistMiniMap({ countryCodes, lang }: { countryCodes: st
       )}
 
       {names.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1">
           {names.map((n) => (
-            <span key={n} className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">
+            <span key={n} className="text-[11px] px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">
               {n}
             </span>
           ))}

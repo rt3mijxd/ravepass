@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
 import { searchCisConcerts, getCisConcertsByArtistSlug } from "@/data/cis-artists";
 import { filterUpcoming } from "@/lib/dates";
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9а-яё]+/g, "-").replace(/(^-|-$)/g, "");
-}
+import { slugify } from "@/lib/slug";
 
 export async function GET(request: NextRequest) {
   const name = request.nextUrl.searchParams.get("name");

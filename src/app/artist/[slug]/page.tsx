@@ -27,6 +27,8 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
   const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState("RU");
   const [originCity, setOriginCity] = useState("MOW");
+  const [visaFreeOnly, setVisaFreeOnly] = useState(false);
+  const [directOnly, setDirectOnly] = useState(false);
 
   const passportOpts = getPassportOptions(lang);
   const cityOpts = getCityOptions(lang);
@@ -47,24 +49,34 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
       .finally(() => setLoading(false));
   }, [slug]);
 
+  // Концерты с учётом фильтров «без визы» и «прямые рейсы»
+  const filteredConcerts = useMemo(() => {
+    return concerts.filter((c) => {
+      if (visaFreeOnly && !isVisaFree(getVisaStatus(c.countryCode, passport))) return false;
+      if (directOnly) {
+        const f = findFlightRoute(originCity, c.city);
+        if (!f || !f.direct) return false;
+      }
+      return true;
+    });
+  }, [concerts, visaFreeOnly, directOnly, passport, originCity]);
+
   const stats = useMemo(() => {
-    const total = concerts.length;
-    const visaFree = concerts.filter((c) => {
-      const visa = getVisaStatus(c.countryCode, passport);
-      return isVisaFree(visa);
-    }).length;
+    const total = filteredConcerts.length;
+    const visaFree = filteredConcerts.filter((c) => isVisaFree(getVisaStatus(c.countryCode, passport))).length;
+    const countries = new Set(filteredConcerts.map((c) => c.countryCode).filter(Boolean)).size;
 
     const dates = concerts.map((c) => c.date).filter(Boolean).sort();
     const firstDate = dates[0];
     const lastDate = dates[dates.length - 1];
 
-    return { total, visaFree, firstDate, lastDate };
-  }, [concerts, passport]);
+    return { total, visaFree, countries, firstDate, lastDate };
+  }, [filteredConcerts, concerts, passport]);
 
-  // Уникальные страны выступлений для мини-карты
+  // Страны выступлений для мини-карты (с учётом фильтров)
   const countryCodes = useMemo(
-    () => Array.from(new Set(concerts.map((c) => c.countryCode).filter(Boolean))),
-    [concerts],
+    () => Array.from(new Set(filteredConcerts.map((c) => c.countryCode).filter(Boolean))),
+    [filteredConcerts],
   );
 
   const displayName = artistInfo?.name || unslugify(slug);
@@ -130,28 +142,50 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
           onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
       </div>
 
-      {/* Счётчики */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-center">
-          <p className="text-3xl font-bold">{stats.total}</p>
-          <p className="text-xs text-zinc-500 mt-1">
-            {pluralizeI18n(stats.total, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
-          </p>
-        </div>
-        <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 text-center">
-          <p className={`text-3xl font-bold ${stats.visaFree > 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {stats.visaFree}
-          </p>
-          <p className="text-xs text-zinc-500 mt-1">
-            {stats.visaFree > 0
-              ? `${pluralizeI18n(stats.visaFree, lang, "доступен", "доступно", "доступно", "available", "available")} ${t("artist.available_visa_free", lang)}`
-              : t("artist.no_visa_free", lang)}
-          </p>
-        </div>
+      {/* Фильтры */}
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <div className="relative">
+            <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+            <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+          </div>
+          {t("filter.visa_free", lang)}
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <div className="relative">
+            <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
+            <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+          </div>
+          {t("filter.direct_flights", lang)}
+        </label>
       </div>
 
-      {/* Мини-карта стран выступлений */}
-      <ArtistMiniMap countryCodes={countryCodes} lang={lang} />
+      {/* Счётчики (слева) + мини-карта (справа) */}
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
+        <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
+          <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-col justify-center text-center sm:flex-1">
+            <p className="text-3xl font-bold">{stats.total}</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {pluralizeI18n(stats.total, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
+            </p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-col justify-center text-center sm:flex-1">
+            <p className={`text-3xl font-bold ${stats.visaFree > 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {stats.visaFree}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {stats.visaFree > 0
+                ? `${pluralizeI18n(stats.visaFree, lang, "доступен", "доступно", "доступно", "available", "available")} ${t("artist.available_visa_free", lang)}`
+                : t("artist.no_visa_free", lang)}
+            </p>
+          </div>
+        </div>
+
+        {/* Мини-карта стран выступлений */}
+        <ArtistMiniMap countryCodes={countryCodes} lang={lang} />
+      </div>
 
       {/* Список концертов */}
       <section className="space-y-3">
@@ -161,7 +195,10 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
             ({stats.total})
           </span>
         </h2>
-        {concerts.map((concert) => {
+        {filteredConcerts.length === 0 && (
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 py-4">{t("empty.no_concerts", lang)}</p>
+        )}
+        {filteredConcerts.map((concert) => {
           const visa = getVisaStatus(concert.countryCode, passport);
           const flight = findFlightRoute(originCity, concert.city);
           return (

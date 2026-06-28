@@ -1,4 +1,5 @@
 import type { Concert } from "@/types";
+import { slugify } from "@/lib/slug";
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 const API_KEY = process.env.TICKETMASTER_API_KEY || "";
@@ -20,10 +21,6 @@ const countryRuNames: Record<string, string> = {
   HU: "Венгрия", GB: "Великобритания", US: "США", CA: "Канада",
   AU: "Австралия", JP: "Япония", SG: "Сингапур",
 };
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
 
 interface TMEvent {
   id: string;

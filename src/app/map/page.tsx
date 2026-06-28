@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { geoNaturalEarth1, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import type { FeatureCollection, Feature, Geometry } from "geojson";
 import type { Topology } from "topojson-specification";
 import { mockConcerts } from "@/data/concerts";
 import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
+import { findFlightRoute } from "@/data/flights";
 import { numericToAlpha2, WORLD_ATLAS_URL } from "@/lib/geo";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
+import { getCityOptions } from "@/data/cities";
 import type { Concert, VisaStatus } from "@/types";
 
 const MAP_W = 980;
@@ -37,7 +40,9 @@ export default function MapPage() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [passport, setPassport] = useState("RU");
+  const [originCity, setOriginCity] = useState("MOW");
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
+  const [directOnly, setDirectOnly] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{ id: string; a2: string; name: string; x: number; y: number } | null>(null);
   const [tf, setTf] = useState({ k: 1, x: 0, y: 0 });
@@ -51,6 +56,7 @@ export default function MapPage() {
   const movedRef = useRef(false);
 
   const passportOpts = getPassportOptions(lang);
+  const cityOpts = getCityOptions(lang);
 
   // Загружаем географию и концерты параллельно
   useEffect(() => {
@@ -78,10 +84,22 @@ export default function MapPage() {
   );
   const path = useMemo(() => geoPath(projection), [projection]);
 
+  // Концерты с учётом фильтров «без визы» и «прямые рейсы»
+  const visibleConcerts = useMemo(() => {
+    return concerts.filter((c) => {
+      if (visaFreeOnly && !isVisaFree(getVisaStatus(c.countryCode, passport))) return false;
+      if (directOnly) {
+        const f = findFlightRoute(originCity, c.city);
+        if (!f || !f.direct) return false;
+      }
+      return true;
+    });
+  }, [concerts, visaFreeOnly, directOnly, passport, originCity]);
+
   // Статистика по странам: количество концертов + ближайшие артисты
-  const countryStats = useMemo(() => {
+  const activeStats = useMemo(() => {
     const map = new Map<string, CountryStats>();
-    const sorted = [...concerts].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...visibleConcerts].sort((a, b) => a.date.localeCompare(b.date));
     for (const c of sorted) {
       if (!c.countryCode) continue;
       let stats = map.get(c.countryCode);
@@ -95,32 +113,23 @@ export default function MapPage() {
       }
     }
     return map;
-  }, [concerts]);
+  }, [visibleConcerts]);
 
-  // Учитываем фильтр «только без визы»
-  const activeStats = useMemo(() => {
-    if (!visaFreeOnly) return countryStats;
-    const m = new Map<string, CountryStats>();
-    for (const [a2, s] of countryStats) {
-      if (isVisaFree(getVisaStatus(a2, passport))) m.set(a2, s);
-    }
-    return m;
-  }, [countryStats, visaFreeOnly, passport]);
-
-  // Концерты выбранной страны, сгруппированные по артистам
+  // Концерты выбранной страны, сгруппированные по артистам, отсортированные по популярности
   const selectedGroups = useMemo(() => {
     if (!selected) return [];
-    const inCountry = concerts
+    const inCountry = visibleConcerts
       .filter((c) => c.countryCode === selected)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const map = new Map<string, { name: string; slug: string; concerts: Concert[] }>();
+    const map = new Map<string, { name: string; slug: string; imageUrl: string; concerts: Concert[] }>();
     for (const c of inCountry) {
       let g = map.get(c.artist.slug);
-      if (!g) { g = { name: c.artist.name, slug: c.artist.slug, concerts: [] }; map.set(c.artist.slug, g); }
+      if (!g) { g = { name: c.artist.name, slug: c.artist.slug, imageUrl: c.artist.imageUrl, concerts: [] }; map.set(c.artist.slug, g); }
       g.concerts.push(c);
     }
-    return Array.from(map.values());
-  }, [concerts, selected]);
+    // Сортировка по числу концертов (популярность) убыванию
+    return Array.from(map.values()).sort((a, b) => b.concerts.length - a.concerts.length);
+  }, [visibleConcerts, selected]);
 
   // Зум колёсиком (non-passive, чтобы блокировать скролл страницы)
   useEffect(() => {
@@ -219,7 +228,7 @@ export default function MapPage() {
           <h1 className="text-2xl font-bold">{t("map.title", lang)}</h1>
           <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 max-w-xl">{t("map.subtitle", lang)}</p>
         </div>
-        <div className="w-full sm:w-64">
+        <div className="grid grid-cols-2 gap-3 w-full sm:w-[34rem]">
           <SearchableSelect
             label={t("filter.passport", lang)}
             options={passportOpts}
@@ -227,10 +236,17 @@ export default function MapPage() {
             onChange={setPassport}
             searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."}
           />
+          <SearchableSelect
+            label={t("filter.origin_city", lang)}
+            options={cityOpts}
+            value={originCity}
+            onChange={setOriginCity}
+            searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."}
+          />
         </div>
       </div>
 
-      {/* Легенда + фильтр */}
+      {/* Легенда + фильтры */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         {(Object.keys(visaColors) as VisaStatus[]).map((status) => (
           <span key={status} className="flex items-center gap-1.5">
@@ -238,14 +254,24 @@ export default function MapPage() {
             {t(`visa.${status}` as Parameters<typeof t>[0], lang)}
           </span>
         ))}
-        <label className="flex items-center gap-2 cursor-pointer select-none ml-auto">
-          <div className="relative">
-            <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
-            <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
-            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
-          </div>
-          {t("map.visa_free_only", lang)}
-        </label>
+        <div className="flex items-center gap-4 ml-auto">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="relative">
+              <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+              <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+            </div>
+            {t("map.visa_free_only", lang)}
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="relative">
+              <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
+              <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+            </div>
+            {t("filter.direct_flights", lang)}
+          </label>
+        </div>
       </div>
 
       {/* Карта */}
@@ -385,24 +411,44 @@ export default function MapPage() {
           {selectedGroups.length === 0 ? (
             <p className="text-sm text-zinc-400 dark:text-zinc-500">{t("map.no_concerts", lang)}</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {selectedGroups.map((g) => (
-                <div key={g.slug} className="bg-white dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
-                  <a href={`/artist/${g.slug}`} className="font-medium text-sm hover:text-orange-500 transition-colors">
-                    {g.name}
-                  </a>
-                  <div className="mt-1.5 space-y-1">
-                    {g.concerts.map((c) => (
-                      <a key={c.id} href={`/concert/${c.id}`} className="flex justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
-                        <span className="truncate">{c.city}{c.venue ? `, ${c.venue}` : ""}</span>
-                        <span className="flex-shrink-0">
-                          {new Date(c.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
-                        </span>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedGroups.map((g) => {
+                const preview = g.concerts.slice(0, 3);
+                const remaining = g.concerts.length - preview.length;
+                return (
+                  <div key={g.slug} className="bg-white dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
+                    <a href={`/artist/${g.slug}`} className="flex items-center gap-2.5 group">
+                      {g.imageUrl ? (
+                        <Image src={g.imageUrl} alt={g.name} width={40} height={40}
+                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0" unoptimized />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex-shrink-0 flex items-center justify-center text-zinc-400 dark:text-zinc-500">♪</div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate group-hover:text-orange-500 transition-colors">{g.name}</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {g.concerts.length} {pluralizeI18n(g.concerts.length, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
+                        </p>
+                      </div>
+                    </a>
+                    <div className="mt-2 space-y-1">
+                      {preview.map((c) => (
+                        <a key={c.id} href={`/concert/${c.id}`} className="flex justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
+                          <span className="truncate">{c.city}</span>
+                          <span className="flex-shrink-0">
+                            {new Date(c.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                    {remaining > 0 && (
+                      <a href={`/artist/${g.slug}`} className="block mt-1.5 text-[11px] text-orange-500 dark:text-orange-400 hover:text-orange-600 transition-colors">
+                        {t("nav.more", lang)} {remaining} {pluralizeI18n(remaining, lang, "концерт", "концерта", "концертов", "concert", "concerts")} →
                       </a>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

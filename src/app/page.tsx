@@ -9,6 +9,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import ArtistCardSkeleton from "@/components/ArtistCardSkeleton";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
+import { normalizeText } from "@/lib/slug";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
 import type { Concert, VisaStatus } from "@/types";
@@ -77,7 +78,7 @@ export default function HomePage() {
   ], [availableCountries, lang]);
 
   const artistGroups = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+    const query = normalizeText(searchQuery);
     const filtered = allConcerts
       .map((concert) => ({
         concert,
@@ -85,7 +86,7 @@ export default function HomePage() {
         flight: findFlightRoute(originCity, concert.city),
       }))
       .filter(({ concert, visa, flight }) => {
-        if (query && !concert.artist.name.toLowerCase().includes(query)) return false;
+        if (query && !normalizeText(concert.artist.name).includes(query)) return false;
         if (visaFreeOnly && !isVisaFree(visa)) return false;
         if (directOnly && flight && !flight.direct) return false;
         if (directOnly && !flight) return false;

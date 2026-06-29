@@ -96,6 +96,8 @@ const translations = {
   // Секции
   "section.popular": { ru: "Популярные направления", en: "Popular destinations" },
   "section.on_tour": { ru: "Топовые мировые артисты сейчас в туре", en: "Top world artists on tour now" },
+  "discover.artists": { ru: "Артисты в туре", en: "Artists on tour" },
+  "discover.destinations": { ru: "Направления", en: "Destinations" },
   "section.concerts": { ru: "Концерты", en: "Concerts" },
   "section.all_concerts": { ru: "Все концерты", en: "All concerts" },
 

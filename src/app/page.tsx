@@ -23,6 +23,7 @@ const popularDestinations = [
   { city: "Тбилиси", cityEn: "Tbilisi", countryCode: "GE", emoji: "🇬🇪" },
   { city: "Ереван", cityEn: "Yerevan", countryCode: "AM", emoji: "🇦🇲" },
   { city: "Алматы", cityEn: "Almaty", countryCode: "KZ", emoji: "🇰🇿" },
+  { city: "Бангкок", cityEn: "Bangkok", countryCode: "TH", emoji: "🇹🇭" },
 ];
 
 interface EnrichedConcert {
@@ -50,6 +51,7 @@ export default function HomePage() {
   const [directOnly, setDirectOnly] = useState(false);
   const [countryFilter, setCountryFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [discoverTab, setDiscoverTab] = useState<"artists" | "destinations">("artists");
 
   const passportOpts = useMemo(() => getPassportOptions(lang), [lang]);
   const cityOpts = useMemo(() => getCityOptions(lang), [lang]);
@@ -173,34 +175,70 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Топовые мировые артисты сейчас в туре */}
+      {/* Открыть для себя: артисты в туре / направления (один блок, переключатель) */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">🔥 {t("section.on_tour", lang)}</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {loading
-            ? Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-[72px] flex flex-col items-center gap-1.5">
-                  <div className="skeleton w-16 h-16 rounded-full" />
-                  <div className="skeleton h-3 w-14 rounded" />
-                  <div className="skeleton h-2.5 w-10 rounded" />
-                </div>
-              ))
-            : topArtists.map((a) => (
-                <a key={a.slug} href={`/artist/${a.slug}`}
-                  className="flex-shrink-0 w-[72px] text-center group">
-                  {a.imageUrl ? (
-                    <Image src={a.imageUrl} alt={a.name} width={64} height={64}
-                      className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-transparent group-hover:ring-orange-500 transition-all" unoptimized />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl ring-2 ring-transparent group-hover:ring-orange-500 transition-all">♪</div>
-                  )}
-                  <p className="text-xs mt-1.5 truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">{a.name}</p>
-                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                    {a.count} {pluralizeI18n(a.count, lang, "концерт", "концерта", "концертов", "show", "shows")}
-                  </p>
-                </a>
-              ))}
+        <div className="flex items-center gap-2 mb-3">
+          {([
+            ["artists", `🔥 ${t("discover.artists", lang)}`],
+            ["destinations", `📍 ${t("discover.destinations", lang)}`],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setDiscoverTab(key)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                discoverTab === key
+                  ? "bg-orange-500/15 text-orange-600 dark:text-orange-400"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {discoverTab === "artists" ? (
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {loading
+              ? Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="flex-shrink-0 w-[72px] flex flex-col items-center gap-1.5">
+                    <div className="skeleton w-16 h-16 rounded-full" />
+                    <div className="skeleton h-3 w-14 rounded" />
+                    <div className="skeleton h-2.5 w-10 rounded" />
+                  </div>
+                ))
+              : topArtists.map((a) => (
+                  <a key={a.slug} href={`/artist/${a.slug}`}
+                    className="flex-shrink-0 w-[72px] text-center group">
+                    {a.imageUrl ? (
+                      <Image src={a.imageUrl} alt={a.name} width={64} height={64}
+                        className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-transparent group-hover:ring-orange-500 transition-all" unoptimized />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl ring-2 ring-transparent group-hover:ring-orange-500 transition-all">♪</div>
+                    )}
+                    <p className="text-xs mt-1.5 truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">{a.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                      {a.count} {pluralizeI18n(a.count, lang, "концерт", "концерта", "концертов", "show", "shows")}
+                    </p>
+                  </a>
+                ))}
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {popularDestinations.map((dest) => (
+              <button key={dest.city}
+                onClick={() => { setCityFilter(cityFilter === dest.city ? "" : dest.city); setCountryFilter(""); }}
+                className={`flex-shrink-0 px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
+                  cityFilter === dest.city
+                    ? "bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400"
+                    : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
+                }`}
+              >
+                <span className="text-lg mr-2">{dest.emoji}</span>
+                {lang === "en" ? dest.cityEn : dest.city}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Фильтры */}
@@ -230,26 +268,6 @@ export default function HomePage() {
               {t("filter.direct_flights", lang)}
             </label>
           </div>
-        </div>
-      </section>
-
-      {/* Популярные направления */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">{t("section.popular", lang)}</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {popularDestinations.map((dest) => (
-            <button key={dest.city}
-              onClick={() => { setCityFilter(cityFilter === dest.city ? "" : dest.city); setCountryFilter(""); }}
-              className={`flex-shrink-0 px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                cityFilter === dest.city
-                  ? "bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400"
-                  : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
-              }`}
-            >
-              <span className="text-lg mr-2">{dest.emoji}</span>
-              {lang === "en" ? dest.cityEn : dest.city}
-            </button>
-          ))}
         </div>
       </section>
 

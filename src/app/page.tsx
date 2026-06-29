@@ -175,7 +175,37 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Открыть для себя: артисты в туре / направления (один блок, переключатель) */}
+      {/* Фильтры */}
+      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-800 space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
+            onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
+          <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
+            onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
+          <SearchableSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
+            onChange={setCountryFilter} searchPlaceholder={lang === "ru" ? "Поиск страны..." : "Search country..."} />
+          <div className="flex flex-col justify-end gap-2">
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div className="relative">
+                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+              </div>
+              {t("filter.visa_free", lang)}
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div className="relative">
+                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
+                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+              </div>
+              {t("filter.direct_flights", lang)}
+            </label>
+          </div>
+        </div>
+      </section>
+
+      {/* Открыть для себя: мировые звёзды / направления (один блок, переключатель) */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           {([
@@ -239,36 +269,6 @@ export default function HomePage() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Фильтры */}
-      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-800 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
-            onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
-          <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
-            onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
-          <SearchableSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
-            onChange={setCountryFilter} searchPlaceholder={lang === "ru" ? "Поиск страны..." : "Search country..."} />
-          <div className="flex flex-col justify-end gap-2">
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <div className="relative">
-                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
-                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
-              </div>
-              {t("filter.visa_free", lang)}
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <div className="relative">
-                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
-                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
-              </div>
-              {t("filter.direct_flights", lang)}
-            </label>
-          </div>
-        </div>
       </section>
 
       {/* Список артистов */}

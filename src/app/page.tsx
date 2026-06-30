@@ -170,7 +170,7 @@ export default function HomePage() {
           title={t("lucky.button", lang)}
           className="flex-shrink-0 flex items-center gap-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium hover:border-orange-500 hover:text-orange-500 dark:hover:text-orange-400 disabled:opacity-50 disabled:hover:border-zinc-300 dark:disabled:hover:border-zinc-800 transition-colors"
         >
-          <span className="text-base">🎲</span>
+          <span className="text-sm leading-none">🎲</span>
           <span className="hidden sm:inline">{t("lucky.button", lang)}</span>
         </button>
       </div>

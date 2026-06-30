@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useSettings } from "@/components/SettingsContext";
 import { t } from "@/lib/i18n";
 import type { Lang, Currency } from "@/lib/i18n";
@@ -80,8 +81,9 @@ export default function Header() {
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <a href="/" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity flex-shrink-0">
-              Rave<span className="text-orange-500">Pass</span>
+            <a href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
+              <Image src="/logo.svg" alt="RavePass" width={28} height={28} className="w-7 h-7 rounded-lg" priority />
+              <span className="text-xl font-bold tracking-tight">Rave<span className="text-orange-500">Pass</span></span>
             </a>
             <span className="text-xs text-zinc-400 dark:text-zinc-500 hidden md:inline">{t("header.subtitle", lang)}</span>
             <a

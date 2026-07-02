@@ -33,8 +33,22 @@ export default function ConcertPage({ params }: { params: Promise<{ id: string }
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-20 flex justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-600 border-t-orange-500" />
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        {/* Шапка */}
+        <div className="flex gap-5 items-start">
+          <div className="skeleton w-24 h-24 rounded-xl flex-shrink-0" />
+          <div className="space-y-2 pt-2 flex-1">
+            <div className="skeleton h-6 w-1/2 rounded" />
+            <div className="skeleton h-4 w-2/3 rounded" />
+            <div className="skeleton h-4 w-1/3 rounded" />
+          </div>
+        </div>
+        <div className="skeleton h-40 rounded-xl" />
+        <div className="skeleton h-28 rounded-xl" />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="skeleton h-12 flex-1 rounded-xl" />
+          <div className="skeleton h-12 flex-1 rounded-xl" />
+        </div>
       </div>
     );
   }

@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { fetchFeaturedConcerts, searchEventsByCountry } from "@/lib/ticketmaster";
 import { mockConcerts } from "@/data/concerts";
 import { cisConcerts } from "@/data/cis-artists";
 import { filterUpcoming } from "@/lib/dates";
 
-export const revalidate = 3600; // кэш на 1 час
+// Кэшируем готовый список концертов на 1 час.
+// Роут динамический (читает searchParams), поэтому route-level revalidate
+// не работает — кэшируем саму дорогую агрегацию через unstable_cache.
+// После первого прогрева пользователь получает список мгновенно,
+// обновление происходит в фоне (stale-while-revalidate).
+const getFeaturedCached = unstable_cache(
+  async () => fetchFeaturedConcerts(),
+  ["featured-concerts"],
+  { revalidate: 3600 },
+);
 
 export async function GET(request: NextRequest) {
   const country = request.nextUrl.searchParams.get("country");
@@ -20,7 +30,7 @@ export async function GET(request: NextRequest) {
       const cisByCountry = cisConcerts.filter((c) => c.countryCode === country);
       concerts = [...concerts, ...cisByCountry];
     } else {
-      concerts = await fetchFeaturedConcerts();
+      concerts = await getFeaturedCached();
       // Добавляем все CIS-концерты к общему списку
       concerts = [...concerts, ...cisConcerts];
     }

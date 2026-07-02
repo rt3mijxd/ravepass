@@ -6,7 +6,7 @@ import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
 import ArtistMiniMap from "@/components/ArtistMiniMap";
-import SubscribeForm from "@/components/SubscribeForm";
+import SubscribeButton from "@/components/SubscribeButton";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
@@ -135,6 +135,9 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
         </div>
       </div>
 
+      {/* Подписка на уведомления (кнопка → модалка) */}
+      <SubscribeButton artistSlug={slug} artistName={displayName} />
+
       {/* Настройки */}
       <div className="grid grid-cols-2 gap-3">
         <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
@@ -250,9 +253,6 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
           );
         })}
       </section>
-
-      {/* Подписка на уведомления */}
-      <SubscribeForm artistSlug={slug} artistName={displayName} />
     </div>
   );
 }

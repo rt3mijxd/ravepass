@@ -187,6 +187,10 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               >
                 {status === "sending" ? t("feedback.sending", lang) : t("feedback.send", lang)}
               </button>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center">
+                {t("consent.agree", lang)}{" "}
+                <a href="/privacy" target="_blank" className="underline hover:text-orange-500">{t("consent.policy", lang)}</a>.
+              </p>
             </form>
           )}
         </div>

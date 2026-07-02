@@ -67,6 +67,15 @@ const translations = {
     ru: "Визовая информация носит справочный характер. Проверяйте данные в официальных источниках.",
     en: "Visa information is for reference only. Please verify with official sources.",
   },
+  "footer.privacy": { ru: "Политика конфиденциальности", en: "Privacy policy" },
+  "footer.affiliate": {
+    ru: "Ссылки на авиабилеты — партнёрские (Aviasales). Мы можем получать комиссию.",
+    en: "Flight links are affiliate (Aviasales). We may earn a commission.",
+  },
+
+  // Согласие на обработку ПД
+  "consent.agree": { ru: "Продолжая, вы соглашаетесь с обработкой персональных данных согласно", en: "By continuing, you agree to the processing of personal data per the" },
+  "consent.policy": { ru: "политике конфиденциальности", en: "privacy policy" },
 
   // Поиск
   "search.placeholder": { ru: "Найти артиста...", en: "Search artist..." },
@@ -197,6 +206,7 @@ const translations = {
   "subscribe.subtitle": { ru: "Пришлём письмо, когда появятся новые даты за рубежом", en: "We'll email you when new dates abroad appear" },
   "subscribe.placeholder": { ru: "Ваш email", en: "Your email" },
   "subscribe.button": { ru: "Подписаться", en: "Subscribe" },
+  "subscribe.button_short": { ru: "Уведомлять о концертах", en: "Get concert alerts" },
   "subscribe.sending": { ru: "Отправляем...", en: "Sending..." },
   "subscribe.check_email": { ru: "Почти готово! Проверьте почту и подтвердите подписку.", en: "Almost done! Check your email to confirm." },
   "subscribe.already": { ru: "Вы уже подписаны на этого артиста 👍", en: "You're already subscribed 👍" },

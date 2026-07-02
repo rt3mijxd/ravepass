@@ -50,7 +50,6 @@ export default function HomePage() {
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
   const [directOnly, setDirectOnly] = useState(false);
   const [countryFilter, setCountryFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
   const [discoverTab, setDiscoverTab] = useState<"artists" | "destinations">("artists");
 
   const passportOpts = useMemo(() => getPassportOptions(lang), [lang]);
@@ -94,7 +93,6 @@ export default function HomePage() {
         if (directOnly && flight && !flight.direct) return false;
         if (directOnly && !flight) return false;
         if (countryFilter && concert.countryCode !== countryFilter) return false;
-        if (cityFilter && concert.city !== cityFilter) return false;
         return true;
       });
 
@@ -114,7 +112,7 @@ export default function HomePage() {
       group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
     }
     return Array.from(groupMap.values()).sort((a, b) => b.concerts.length - a.concerts.length);
-  }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, cityFilter]);
+  }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter]);
 
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
   const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
@@ -256,9 +254,9 @@ export default function HomePage() {
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {popularDestinations.map((dest) => (
               <button key={dest.city}
-                onClick={() => { setCityFilter(cityFilter === dest.city ? "" : dest.city); setCountryFilter(""); }}
+                onClick={() => setCountryFilter(countryFilter === dest.countryCode ? "" : dest.countryCode)}
                 className={`flex-shrink-0 px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                  cityFilter === dest.city
+                  countryFilter === dest.countryCode
                     ? "bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400"
                     : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
                 }`}

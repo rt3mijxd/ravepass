@@ -20,8 +20,19 @@ create table if not exists subscriptions (
   artist_name text,
   confirmed boolean not null default false,
   confirm_token uuid not null default gen_random_uuid(),
+  -- Персональные фильтры уведомлений:
+  passport text,
+  origin_city text,
+  visa_free_only boolean not null default false,
+  direct_only boolean not null default false,
   unique (email, artist_slug)
 );
+
+-- Если таблица уже создана — доехать до новых колонок:
+alter table subscriptions add column if not exists passport text;
+alter table subscriptions add column if not exists origin_city text;
+alter table subscriptions add column if not exists visa_free_only boolean not null default false;
+alter table subscriptions add column if not exists direct_only boolean not null default false;
 
 -- Уже разосланные/учтённые концерты (чтобы не дублировать уведомления)
 create table if not exists seen_concerts (

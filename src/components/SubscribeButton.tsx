@@ -5,10 +5,22 @@ import { track } from "@vercel/analytics";
 import { useSettings } from "@/components/SettingsContext";
 import { t } from "@/lib/i18n";
 
-export default function SubscribeButton({ artistSlug, artistName }: { artistSlug: string; artistName: string }) {
+export default function SubscribeButton({
+  artistSlug,
+  artistName,
+  passport,
+  originCity,
+}: {
+  artistSlug: string;
+  artistName: string;
+  passport: string;
+  originCity: string;
+}) {
   const { lang } = useSettings();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [visaFreeOnly, setVisaFreeOnly] = useState(false);
+  const [directOnly, setDirectOnly] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "check" | "already" | "error" | "invalid">("idle");
 
   useEffect(() => {
@@ -34,7 +46,7 @@ export default function SubscribeButton({ artistSlug, artistName }: { artistSlug
       const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, artistSlug, artistName }),
+        body: JSON.stringify({ email, artistSlug, artistName, passport, originCity, visaFreeOnly, directOnly }),
       });
       const data = await res.json();
       if (res.ok && data.already) setStatus("already");
@@ -93,6 +105,30 @@ export default function SubscribeButton({ artistSlug, artistName }: { artistSlug
                   />
                   {status === "invalid" && <p className="text-xs text-red-400">{t("subscribe.invalid_email", lang)}</p>}
                   {status === "error" && <p className="text-xs text-red-400">{t("subscribe.error", lang)}</p>}
+
+                  {/* Персональные фильтры уведомлений */}
+                  <div className="space-y-2 pt-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <div className="relative">
+                        <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
+                        <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+                      </div>
+                      {t("subscribe.only_visa_free", lang)}
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <div className="relative">
+                        <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
+                        <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
+                      </div>
+                      {t("subscribe.only_direct", lang)}
+                    </label>
+                    {(visaFreeOnly || directOnly) && (
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("subscribe.filters_hint", lang)}</p>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     disabled={status === "sending"}

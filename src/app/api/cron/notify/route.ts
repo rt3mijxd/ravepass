@@ -5,6 +5,8 @@ import { newConcertsEmail } from "@/lib/email-templates";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
 import { getCisConcertsByArtistSlug } from "@/data/cis-artists";
 import { filterUpcoming } from "@/lib/dates";
+import { getVisaStatus, isVisaFree } from "@/data/visas";
+import { findFlightRoute } from "@/data/flights";
 import type { Concert } from "@/types";
 
 export const maxDuration = 60; // секунд (Vercel)
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
   // 1. Уникальные артисты среди подтверждённых подписок
   const { data: subs, error } = await supabase
     .from("subscriptions")
-    .select("email, artist_slug, artist_name, confirm_token")
+    .select("email, artist_slug, artist_name, confirm_token, passport, origin_city, visa_free_only, direct_only")
     .eq("confirmed", true);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -88,10 +90,20 @@ export async function GET(request: NextRequest) {
 
     newConcertsTotal += fresh.length;
 
-    // 6. Рассылаем подтверждённым подписчикам
+    // 6. Рассылаем подтверждённым подписчикам — с учётом их персональных фильтров
     for (const sub of info.subs) {
+      const matching = fresh.filter((c) => {
+        if (sub.visa_free_only && sub.passport && !isVisaFree(getVisaStatus(c.countryCode, sub.passport))) return false;
+        if (sub.direct_only && sub.origin_city) {
+          const f = findFlightRoute(sub.origin_city, c.city);
+          if (!f || !f.direct) return false;
+        }
+        return true;
+      });
+      if (matching.length === 0) continue; // подписчику нечего слать по его фильтрам
+
       const unsubUrl = `${base}/api/unsubscribe?token=${sub.confirm_token}`;
-      const { subject, html } = newConcertsEmail(info.name, fresh.slice(0, 8), unsubUrl);
+      const { subject, html } = newConcertsEmail(info.name, matching.slice(0, 8), unsubUrl);
       const ok = await sendEmail(sub.email, subject, html);
       if (ok) emailsSent++;
     }

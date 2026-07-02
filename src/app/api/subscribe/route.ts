@@ -11,10 +11,14 @@ function siteUrl(req: NextRequest): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, artistSlug, artistName } = (await request.json()) as {
+    const { email, artistSlug, artistName, passport, originCity, visaFreeOnly, directOnly } = (await request.json()) as {
       email?: string;
       artistSlug?: string;
       artistName?: string;
+      passport?: string;
+      originCity?: string;
+      visaFreeOnly?: boolean;
+      directOnly?: boolean;
     };
 
     const cleanEmail = (email ?? "").trim().toLowerCase();
@@ -48,7 +52,15 @@ export async function POST(request: NextRequest) {
     } else {
       const { data: inserted, error } = await supabase
         .from("subscriptions")
-        .insert({ email: cleanEmail, artist_slug: artistSlug, artist_name: artistName ?? null })
+        .insert({
+          email: cleanEmail,
+          artist_slug: artistSlug,
+          artist_name: artistName ?? null,
+          passport: passport ?? null,
+          origin_city: originCity ?? null,
+          visa_free_only: Boolean(visaFreeOnly),
+          direct_only: Boolean(directOnly),
+        })
         .select("confirm_token")
         .single();
       if (error || !inserted) {

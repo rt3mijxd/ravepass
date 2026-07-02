@@ -136,7 +136,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
       </div>
 
       {/* Подписка на уведомления (кнопка → модалка) */}
-      <SubscribeButton artistSlug={slug} artistName={displayName} />
+      <SubscribeButton artistSlug={slug} artistName={displayName} passport={passport} originCity={originCity} />
 
       {/* Настройки */}
       <div className="grid grid-cols-2 gap-3">

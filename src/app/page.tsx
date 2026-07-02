@@ -225,13 +225,12 @@ export default function HomePage() {
         </div>
 
         {discoverTab === "artists" ? (
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-4 overflow-x-auto px-1 py-2 -mx-1 scrollbar-hide">
             {loading
               ? Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="flex-shrink-0 w-[72px] flex flex-col items-center gap-1.5">
+                  <div key={i} className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2">
                     <div className="skeleton w-16 h-16 rounded-full" />
                     <div className="skeleton h-3 w-14 rounded" />
-                    <div className="skeleton h-2.5 w-10 rounded" />
                   </div>
                 ))
               : topArtists.map((a) => (
@@ -244,9 +243,6 @@ export default function HomePage() {
                       <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl ring-2 ring-transparent group-hover:ring-orange-500 transition-all">♪</div>
                     )}
                     <p className="text-xs mt-1.5 truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">{a.name}</p>
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                      {a.count} {pluralizeI18n(a.count, lang, "концерт", "концерта", "концертов", "show", "shows")}
-                    </p>
                   </a>
                 ))}
           </div>

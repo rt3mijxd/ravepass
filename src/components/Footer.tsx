@@ -14,9 +14,12 @@ export default function Footer() {
       <p className="text-xs text-zinc-500">
         © {new Date().getFullYear()} RavePass. {t("footer.rights", lang)}
       </p>
-      <p>
+      <p className="flex items-center justify-center gap-3">
         <a href="/privacy" className="text-xs text-zinc-500 hover:text-orange-500 dark:hover:text-orange-400 transition-colors underline underline-offset-2">
           {t("footer.privacy", lang)}
+        </a>
+        <a href="mailto:ravepass@hotmail.com" className="text-xs text-zinc-500 hover:text-orange-500 dark:hover:text-orange-400 transition-colors underline underline-offset-2">
+          {t("footer.contact", lang)}
         </a>
       </p>
       <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-xl mx-auto px-4">

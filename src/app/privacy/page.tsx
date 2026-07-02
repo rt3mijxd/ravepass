@@ -3,7 +3,7 @@
 import { useSettings } from "@/components/SettingsContext";
 import { t } from "@/lib/i18n";
 
-const CONTACT_EMAIL = "ravepass@proton.me";
+const CONTACT_EMAIL = "ravepass@hotmail.com";
 
 export default function PrivacyPage() {
   const { lang } = useSettings();

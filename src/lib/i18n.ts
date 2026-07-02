@@ -68,6 +68,7 @@ const translations = {
     en: "Visa information is for reference only. Please verify with official sources.",
   },
   "footer.privacy": { ru: "Политика конфиденциальности", en: "Privacy policy" },
+  "footer.contact": { ru: "Связаться", en: "Contact" },
   "footer.affiliate": {
     ru: "Ссылки на авиабилеты — партнёрские (Aviasales). Мы можем получать комиссию.",
     en: "Flight links are affiliate (Aviasales). We may earn a commission.",

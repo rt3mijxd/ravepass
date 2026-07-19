@@ -12,15 +12,18 @@ const geist = Geist({
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ravepass.site";
-const title = "RavePass — концерты за рубежом";
+const title = "RavePass — Concerts abroad, filtered by your passport";
 const description =
-  "Агрегатор концертов мировых артистов за рубежом для жителей России и СНГ. Фильтрация по визам и прямым рейсам.";
+  "Find concerts abroad you can actually reach — filtered by your passport's visa requirements and direct flights. Концерты за рубежом с фильтром по визам и прямым рейсам.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
-  keywords: ["концерты за рубежом", "концерты без визы", "афиша", "RavePass", "концерты СНГ", "туры артистов"],
+  keywords: [
+    "concerts abroad", "visa-free concerts", "concert travel", "RavePass",
+    "world tours", "концерты за рубежом", "концерты без визы", "туры артистов",
+  ],
   icons: { icon: "/favicon.svg" },
   openGraph: {
     title,
@@ -28,7 +31,8 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "RavePass",
     type: "website",
-    locale: "ru_RU",
+    locale: "en_US",
+    alternateLocale: ["ru_RU"],
   },
   twitter: {
     card: "summary_large_image",

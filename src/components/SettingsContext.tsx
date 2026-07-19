@@ -37,8 +37,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const savedLang = localStorage.getItem("ravepass_lang") as Lang | null;
     const savedCurrency = localStorage.getItem("ravepass_currency") as Currency | null;
     const savedTheme = localStorage.getItem("ravepass_theme") as Theme | null;
-    if (savedLang === "ru" || savedLang === "en") setLangState(savedLang);
-    if (savedCurrency === "RUB" || savedCurrency === "USD" || savedCurrency === "EUR") setCurrencyState(savedCurrency);
+
+    // Локали СНГ — для них по умолчанию русский; для остальных — английский
+    const cisLocales = ["ru", "uk", "be", "kk", "uz", "ky", "az", "hy", "ka", "tg", "tk", "mo"];
+    const navLang = (typeof navigator !== "undefined" ? navigator.language : "").toLowerCase();
+    const isCis = cisLocales.some((l) => navLang.startsWith(l));
+
+    if (savedLang === "ru" || savedLang === "en") {
+      setLangState(savedLang);
+    } else {
+      // Первый визит без сохранённого выбора — определяем по языку браузера
+      setLangState(isCis ? "ru" : "en");
+    }
+
+    if (savedCurrency === "RUB" || savedCurrency === "USD" || savedCurrency === "EUR") {
+      setCurrencyState(savedCurrency);
+    } else if (!isCis) {
+      // Не из СНГ и валюта не выбрана — доллар вместо рублей
+      setCurrencyState("USD");
+    }
+
     if (savedTheme === "dark" || savedTheme === "light") {
       setThemeState(savedTheme);
       applyTheme(savedTheme);

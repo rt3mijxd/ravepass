@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase";
 import { sendEmail, isEmailConfigured } from "@/lib/resend";
 import { confirmEmail } from "@/lib/email-templates";
+import { rateLimit, clientIp } from "@/lib/security";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,6 +12,11 @@ function siteUrl(req: NextRequest): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate-limit: не более 5 подписок с IP в минуту (антифлуд/антибомбинг писем)
+    if (!rateLimit(`sub:${clientIp(request)}`, 5, 60_000)) {
+      return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+    }
+
     const { email, artistSlug, artistName, passport, originCity, visaFreeOnly, directOnly } = (await request.json()) as {
       email?: string;
       artistSlug?: string;
@@ -22,12 +28,13 @@ export async function POST(request: NextRequest) {
     };
 
     const cleanEmail = (email ?? "").trim().toLowerCase();
-    if (!EMAIL_RE.test(cleanEmail)) {
+    if (!EMAIL_RE.test(cleanEmail) || cleanEmail.length > 254) {
       return NextResponse.json({ error: "invalid_email" }, { status: 400 });
     }
-    if (!artistSlug) {
+    if (!artistSlug || artistSlug.length > 128) {
       return NextResponse.json({ error: "artist_required" }, { status: 400 });
     }
+    const safeArtistName = (artistName ?? "").slice(0, 200);
 
     const supabase = getServiceClient();
     if (!supabase) {
@@ -55,7 +62,7 @@ export async function POST(request: NextRequest) {
         .insert({
           email: cleanEmail,
           artist_slug: artistSlug,
-          artist_name: artistName ?? null,
+          artist_name: safeArtistName || null,
           passport: passport ?? null,
           origin_city: originCity ?? null,
           visa_free_only: Boolean(visaFreeOnly),
@@ -73,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Отправляем письмо подтверждения
     if (isEmailConfigured()) {
       const confirmUrl = `${siteUrl(request)}/api/confirm?token=${token}`;
-      const { subject, html } = confirmEmail(artistName ?? artistSlug, confirmUrl);
+      const { subject, html } = confirmEmail(safeArtistName || artistSlug, confirmUrl);
       const sent = await sendEmail(cleanEmail, subject, html);
       if (!sent) {
         return NextResponse.json({ error: "email_failed" }, { status: 502 });

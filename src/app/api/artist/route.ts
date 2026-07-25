@@ -3,11 +3,17 @@ import { searchEventsByArtist } from "@/lib/ticketmaster";
 import { searchCisConcerts, getCisConcertsByArtistSlug } from "@/data/cis-artists";
 import { filterUpcoming } from "@/lib/dates";
 import { slugify } from "@/lib/slug";
+import { rateLimit, clientIp } from "@/lib/security";
 
 export async function GET(request: NextRequest) {
+  // Мягкий лимит: защита TM-квоты от автоматического перебора (человеку хватает)
+  if (!rateLimit(`art:${clientIp(request)}`, 40, 60_000)) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const name = request.nextUrl.searchParams.get("name");
 
-  if (!name) {
+  if (!name || name.length > 200) {
     return NextResponse.json({ error: "name parameter required" }, { status: 400 });
   }
 

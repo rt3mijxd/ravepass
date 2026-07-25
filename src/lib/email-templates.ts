@@ -1,4 +1,5 @@
 import type { Concert } from "@/types";
+import { escapeHtml } from "@/lib/security";
 
 const BRAND = "#f97316";
 
@@ -27,13 +28,14 @@ function button(href: string, label: string): string {
 
 // Письмо подтверждения подписки (double opt-in)
 export function confirmEmail(artistName: string, confirmUrl: string): { subject: string; html: string } {
+  const safeArtist = escapeHtml(artistName);
   return {
-    subject: `Подтвердите подписку на ${artistName} — RavePass`,
+    subject: `Подтвердите подписку на ${safeArtist} — RavePass`,
     html: shell(`
       <h1 style="font-size:18px;margin:8px 0 12px">Подтвердите подписку</h1>
       <p style="font-size:14px;line-height:1.6;color:#a1a1aa;margin:0 0 20px">
         Вы подписываетесь на уведомления о новых концертах артиста
-        <b style="color:#e4e4e7">${artistName}</b> за рубежом. Подтвердите, что это вы:
+        <b style="color:#e4e4e7">${safeArtist}</b> за рубежом. Подтвердите, что это вы:
       </p>
       ${button(confirmUrl, "Подтвердить подписку")}
       <p style="font-size:12px;color:#71717a;margin:20px 0 0">
@@ -49,14 +51,18 @@ export function newConcertsEmail(
   concerts: Concert[],
   unsubscribeUrl: string,
 ): { subject: string; html: string } {
+  const safeArtist = escapeHtml(artistName);
   const rows = concerts
     .map((c) => {
       const date = new Date(c.date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+      const city = escapeHtml(c.city);
+      const country = c.country ? ", " + escapeHtml(c.country) : "";
+      const venue = c.venue ? " · " + escapeHtml(c.venue) : "";
       return `
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #27272a">
-            <div style="font-size:14px;color:#e4e4e7">${c.city}${c.country ? ", " + c.country : ""}</div>
-            <div style="font-size:12px;color:#a1a1aa">${date}${c.venue ? " · " + c.venue : ""}</div>
+            <div style="font-size:14px;color:#e4e4e7">${city}${country}</div>
+            <div style="font-size:12px;color:#a1a1aa">${date}${venue}</div>
           </td>
           <td style="padding:10px 0;border-bottom:1px solid #27272a;text-align:right">
             <a href="${siteUrl()}/concert/${c.id}" style="color:${BRAND};font-size:13px;text-decoration:none">Подробнее →</a>
@@ -66,9 +72,9 @@ export function newConcertsEmail(
     .join("");
 
   return {
-    subject: `${artistName}: новые концерты за рубежом — RavePass`,
+    subject: `${safeArtist}: новые концерты за рубежом — RavePass`,
     html: shell(`
-      <h1 style="font-size:18px;margin:8px 0 12px">Новые концерты: ${artistName}</h1>
+      <h1 style="font-size:18px;margin:8px 0 12px">Новые концерты: ${safeArtist}</h1>
       <p style="font-size:14px;line-height:1.6;color:#a1a1aa;margin:0 0 16px">
         Появились новые даты, на которые можно поехать:
       </p>

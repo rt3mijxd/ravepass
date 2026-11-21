@@ -1,4 +1,4 @@
-import { slugify } from "@/lib/slug";
+import { normalizeText, slugify } from "@/lib/slug";
 
 /**
  * Топовые мировые артисты в порядке примерной глобальной популярности.
@@ -42,3 +42,46 @@ export const TOP_WORLD_ARTISTS: string[] = [
 export const topArtistRank: Map<string, number> = new Map(
   TOP_WORLD_ARTISTS.map((name, i) => [slugify(name), i]),
 );
+
+// Основное имя для Ticketmaster и варианты для поиска по афише.
+const cisAliases: Record<string, string[]> = {
+  "Little Big": ["Литл Биг"],
+  "AIGEL": ["АИГЕЛ"],
+  "Bi-2": ["Би-2", "Bi2"],
+  "Mumiy Troll": ["Мумий Тролль"],
+  "Noize MC": ["Нойз МС", "Нойз МЦ"],
+  "Monetochka": ["Монеточка"],
+  "Oxxxymiron": ["Оксимирон"],
+  "Max Korzh": ["Макс Корж", "Maks Korzh"],
+  "Skryptonite": ["Скриптонит", "Scriptonite"],
+  "Poshlaya Molly": ["Пошлая Молли", "Poshlaya Molli", "Poshlaia Molli"],
+  "Kasta": ["Каста"],
+  "Morgenshtern": ["Моргенштерн", "Alisher"],
+  "Splean": ["Сплин"],
+  "Mashina Vremeni": ["Машина времени"],
+  "Aquarium": ["Аквариум"],
+  "Ivan Dorn": ["Иван Дорн"],
+  "Max Barskih": ["Макс Барских", "Max Barsky"],
+  "Loboda": ["Лобода", "Светлана Лобода"],
+  "Artem Pivovarov": ["Артём Пивоваров", "Артем Пивоваров"],
+  "Okean Elzy": ["Океан Ельзи", "Океан Эльзы"],
+};
+
+export const TOP_CIS_ARTISTS = Object.keys(cisAliases);
+const cisNames = new Map(
+  Object.entries(cisAliases).flatMap(([name, aliases]) =>
+    [name, ...aliases].map((alias): [string, string] => [slugify(alias), name]),
+  ),
+);
+
+export function canonicalArtistSlug(name: string): string {
+  const slug = slugify(name);
+  const canonical = cisNames.get(slug);
+  return canonical ? slugify(canonical) : slug;
+}
+
+export function matchesArtist(name: string, slug: string, query: string): boolean {
+  const canonical = cisNames.get(canonicalArtistSlug(slug));
+  const aliases = canonical ? [canonical, ...cisAliases[canonical]] : [];
+  return [name, ...aliases].some((term) => normalizeText(term).includes(query));
+}

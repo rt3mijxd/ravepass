@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { Lang, Currency } from "@/lib/i18n";
+import { allPassports } from "@/data/passports";
+import { allCities } from "@/data/cities";
 
 export type Theme = "dark" | "light";
 
@@ -10,6 +12,10 @@ interface SettingsContextType {
   setLang: (lang: Lang) => void;
   currency: Currency;
   setCurrency: (currency: Currency) => void;
+  passport: string;
+  setPassport: (passport: string) => void;
+  originCity: string;
+  setOriginCity: (originCity: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -19,6 +25,10 @@ const SettingsContext = createContext<SettingsContextType>({
   setLang: () => {},
   currency: "RUB",
   setCurrency: () => {},
+  passport: "RU",
+  setPassport: () => {},
+  originCity: "MOW",
+  setOriginCity: () => {},
   theme: "dark",
   setTheme: () => {},
 });
@@ -27,70 +37,78 @@ export function useSettings() {
   return useContext(SettingsContext);
 }
 
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ru");
   const [currency, setCurrencyState] = useState<Currency>("RUB");
+  const [passport, setPassportState] = useState("RU");
+  const [originCity, setOriginCityState] = useState("MOW");
   const [theme, setThemeState] = useState<Theme>("dark");
 
   // Загружаем из localStorage при монтировании
   useEffect(() => {
-    const savedLang = localStorage.getItem("ravepass_lang") as Lang | null;
-    const savedCurrency = localStorage.getItem("ravepass_currency") as Currency | null;
-    const savedTheme = localStorage.getItem("ravepass_theme") as Theme | null;
+    const frame = window.requestAnimationFrame(() => {
+      let savedLang: string | null = null;
+      let savedCurrency: string | null = null;
+      let savedTheme: string | null = null;
+      let savedPassport: string | null = null;
+      let savedOrigin: string | null = null;
+      try {
+        savedLang = localStorage.getItem("ravepass_lang");
+        savedCurrency = localStorage.getItem("ravepass_currency");
+        savedTheme = localStorage.getItem("ravepass_theme");
+        savedPassport = localStorage.getItem("ravepass_passport");
+        savedOrigin = localStorage.getItem("ravepass_origin");
+      } catch {}
 
-    // Локали СНГ — для них по умолчанию русский; для остальных — английский
-    const cisLocales = ["ru", "uk", "be", "kk", "uz", "ky", "az", "hy", "ka", "tg", "tk", "mo"];
-    const navLang = (typeof navigator !== "undefined" ? navigator.language : "").toLowerCase();
-    const isCis = cisLocales.some((l) => navLang.startsWith(l));
-
-    if (savedLang === "ru" || savedLang === "en") {
-      setLangState(savedLang);
-    } else {
-      // Первый визит без сохранённого выбора — определяем по языку браузера
-      setLangState(isCis ? "ru" : "en");
-    }
-
-    if (savedCurrency === "RUB" || savedCurrency === "USD" || savedCurrency === "EUR") {
-      setCurrencyState(savedCurrency);
-    } else if (!isCis) {
-      // Не из СНГ и валюта не выбрана — доллар вместо рублей
-      setCurrencyState("USD");
-    }
-
-    if (savedTheme === "dark" || savedTheme === "light") {
-      setThemeState(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      applyTheme("dark");
-    }
+      const russianLocales = ["ru", "uk", "be", "kk", "uz", "ky", "az", "hy", "ka", "tg", "tk", "mo"];
+      const prefersRussian = russianLocales.includes(navigator.language.toLowerCase().split("-")[0]);
+      setLangState(savedLang === "ru" || savedLang === "en" ? savedLang : prefersRussian ? "ru" : "en");
+      setCurrencyState(savedCurrency === "RUB" || savedCurrency === "USD" || savedCurrency === "EUR"
+        ? savedCurrency
+        : prefersRussian ? "RUB" : "USD");
+      if (savedPassport && allPassports.some(({ code }) => code === savedPassport)) setPassportState(savedPassport);
+      if (savedOrigin && allCities.some(({ code }) => code === savedOrigin)) setOriginCityState(savedOrigin);
+      const theme = savedTheme === "light" ? "light" : "dark";
+      setThemeState(theme);
+      applyTheme(theme);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const applyTheme = (t: Theme) => {
-    if (t === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   const setLang = (l: Lang) => {
     setLangState(l);
-    localStorage.setItem("ravepass_lang", l);
+    try { localStorage.setItem("ravepass_lang", l); } catch {}
   };
 
   const setCurrency = (c: Currency) => {
     setCurrencyState(c);
-    localStorage.setItem("ravepass_currency", c);
+    try { localStorage.setItem("ravepass_currency", c); } catch {}
+  };
+
+  const setPassport = (code: string) => {
+    setPassportState(code);
+    try { localStorage.setItem("ravepass_passport", code); } catch {}
+  };
+
+  const setOriginCity = (code: string) => {
+    setOriginCityState(code);
+    try { localStorage.setItem("ravepass_origin", code); } catch {}
   };
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem("ravepass_theme", t);
+    try { localStorage.setItem("ravepass_theme", t); } catch {}
     applyTheme(t);
   };
 
   return (
-    <SettingsContext.Provider value={{ lang, setLang, currency, setCurrency, theme, setTheme }}>
+    <SettingsContext.Provider value={{ lang, setLang, currency, setCurrency, passport, setPassport, originCity, setOriginCity, theme, setTheme }}>
       {children}
     </SettingsContext.Provider>
   );

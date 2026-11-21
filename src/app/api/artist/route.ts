@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
-import { searchCisConcerts, getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
-import { slugify } from "@/lib/slug";
 import { rateLimit, clientIp } from "@/lib/security";
+import type { Concert } from "@/types";
 
 export async function GET(request: NextRequest) {
   // Мягкий лимит: защита TM-квоты от автоматического перебора (человеку хватает)
@@ -17,52 +18,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "name parameter required" }, { status: 400 });
   }
 
+  const curated = getCisConcertsByArtistSlug(name);
+
+  let liveConcerts: Concert[];
   try {
-    const requestedSlug = slugify(name);
-
-    // Ищем в Ticketmaster
-    const tmConcerts = await searchEventsByArtist(name);
-
-    // CIS-данные: сначала по slug (URL вида /artist/little-big), затем по имени
-    let cisConcerts = getCisConcertsByArtistSlug(requestedSlug);
-    if (cisConcerts.length === 0) {
-      cisConcerts = searchCisConcerts(name);
-    }
-
-    const merged = [...tmConcerts, ...cisConcerts];
-
-    // TM по ключевому слову может вернуть фестивали, где артист лишь в лайнапе
-    // (напр. "Little Big" → "Down the Rabbit Hole"). Если есть точные совпадения
-    // по slug артиста — оставляем только их, чтобы не было чужих событий.
-    const exact = merged.filter((c) => c.artist.slug === requestedSlug);
-    const chosen = exact.length > 0 ? exact : merged;
-
-    // Дедупликация: убираем концерты с одинаковым городом и датой
-    const dedupMap = new Map<string, typeof chosen[0]>();
-    for (const c of chosen) {
-      const key = `${c.city}|${c.date}`;
-      if (!dedupMap.has(key)) {
-        dedupMap.set(key, c);
-      }
-    }
-    // Скрываем прошедшие концерты и сортируем по дате
-    const concerts = filterUpcoming(Array.from(dedupMap.values()))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    // Идентификация артиста: предпочитаем концерт с точным совпадением slug
-    const identity = concerts.find((c) => c.artist.slug === requestedSlug) ?? concerts[0];
-
-    return NextResponse.json({
-      artist: identity
-        ? {
-            name: identity.artist.name,
-            imageUrl: identity.artist.imageUrl,
-            genre: identity.artist.genre,
-          }
-        : null,
-      concerts,
-    });
+    liveConcerts = await searchEventsByArtist(name);
   } catch {
-    return NextResponse.json({ artist: null, concerts: [] });
+    if (filterUpcoming(curated).length === 0) {
+      return NextResponse.json({ error: "catalog_unavailable" }, { status: 503 });
+    }
+    liveConcerts = [];
   }
+
+  const unique = new Map(mergeConcertSources(liveConcerts, curated).map((concert) => [concert.id, concert]));
+  const concerts = filterUpcoming([...unique.values()]).sort(
+    (a, b) => a.date.localeCompare(b.date),
+  );
+
+  return NextResponse.json({ artist: concerts[0]?.artist ?? null, concerts });
 }

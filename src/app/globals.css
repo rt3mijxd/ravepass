@@ -3,7 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: var(--font-geist);
+  --font-sans: var(--font-inter);
 }
 
 /* Скрываем скроллбар в горизонтальных списках */
@@ -49,4 +49,54 @@
     rgba(255, 255, 255, 0.12) 50%,
     rgba(255, 255, 255, 0) 100%
   );
+}
+
+@utility rp-focus {
+  &:focus-visible {
+    outline: 2px solid var(--color-orange-600);
+    outline-offset: 2px;
+  }
+}
+
+@utility rp-field {
+  @apply rp-focus rounded-xl border border-zinc-300 bg-white text-sm text-zinc-900 transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950/65 dark:text-zinc-100 dark:hover:border-zinc-500;
+}
+
+.artist-search-glow {
+  background: radial-gradient(ellipse at top left, rgb(249 115 22 / 13%), transparent 60%);
+}
+
+.dark .artist-search-glow {
+  background: radial-gradient(ellipse at top left, rgb(249 115 22 / 19%), transparent 60%);
+}
+
+@utility rp-filter-toggle {
+  @apply flex min-h-9 cursor-pointer items-center gap-2 rounded-lg text-xs font-medium text-zinc-700 transition-colors hover:text-zinc-950 lg:min-h-8 dark:text-zinc-300 dark:hover:text-white;
+
+  input {
+    @apply rp-focus relative m-0 h-5 w-9 shrink-0 appearance-none rounded-full border border-zinc-300 bg-zinc-200 transition-colors checked:border-orange-700 checked:bg-orange-700 dark:border-zinc-600 dark:bg-zinc-700 dark:checked:border-orange-400 dark:checked:bg-orange-400;
+  }
+
+  input::before {
+    @apply absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-sm transition-transform content-[''];
+  }
+
+  input:checked::before {
+    @apply translate-x-4 dark:bg-zinc-950;
+  }
+}
+
+.artist-cover {
+  background:
+    radial-gradient(ellipse at 95% 0%, rgb(249 115 22 / 42%), transparent 68%),
+    radial-gradient(ellipse at 35% 0%, rgb(225 29 72 / 15%), transparent 64%),
+    #151316;
+}
+
+.artist-cover-photo {
+  mask-image: linear-gradient(to right, transparent 0%, #000 60%);
+}
+
+.artist-cover-shade {
+  background: linear-gradient(to top, rgb(12 10 11 / 90%), rgb(12 10 11 / 38%) 42%, transparent 80%);
 }

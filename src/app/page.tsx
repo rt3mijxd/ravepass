@@ -2,15 +2,19 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
-import { mockConcerts } from "@/data/concerts";
-import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { countryLabel, concertLocation } from "@/lib/country-label";
+import { formatConcertDate } from "@/lib/dates";
+import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
 import ArtistCardSkeleton from "@/components/ArtistCardSkeleton";
+import ConcertMapLink from "@/components/ConcertMapLink";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { normalizeText } from "@/lib/slug";
-import { topArtistRank } from "@/data/topArtists";
+import { matchesArtist, topArtistRank } from "@/data/topArtists";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
 import type { Concert, VisaStatus } from "@/types";
@@ -41,12 +45,13 @@ interface ArtistGroup {
 }
 
 export default function HomePage() {
-  const { lang } = useSettings();
+  const { lang, passport, setPassport, originCity, setOriginCity } = useSettings();
+  const router = useRouter();
   const [allConcerts, setAllConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [passport, setPassport] = useState("RU");
-  const [originCity, setOriginCity] = useState("MOW");
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
   const [directOnly, setDirectOnly] = useState(false);
   const [countryFilter, setCountryFilter] = useState("");
@@ -57,26 +62,22 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch("/api/concerts")
-      .then((res) => res.json())
-      .then((data: Concert[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setAllConcerts(data);
-        } else {
-          setAllConcerts(mockConcerts);
-        }
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Could not load concerts");
+        setAllConcerts(await res.json() as Concert[]);
       })
-      .catch(() => { setAllConcerts(mockConcerts); })
+      .catch(() => setCatalogError(true))
       .finally(() => setLoading(false));
   }, []);
 
   const availableCountries = useMemo(() => {
     const codes = new Set(allConcerts.map((c) => c.countryCode).filter(Boolean));
-    return Array.from(codes).sort((a, b) => (countryNames[a] ?? a).localeCompare(countryNames[b] ?? b, "ru"));
-  }, [allConcerts]);
+    return Array.from(codes).sort((a, b) => countryLabel(a, lang, a).localeCompare(countryLabel(b, lang, b), lang));
+  }, [allConcerts, lang]);
 
   const countryOptions = useMemo(() => [
     { value: "", label: t("filter.all_countries", lang), group: "popular" },
-    ...availableCountries.map((code) => ({ value: code, label: countryNames[code] ?? code })),
+    ...availableCountries.map((code) => ({ value: code, label: countryLabel(code, lang, code) })),
   ], [availableCountries, lang]);
 
   const artistGroups = useMemo(() => {
@@ -88,7 +89,7 @@ export default function HomePage() {
         flight: findFlightRoute(originCity, concert.city),
       }))
       .filter(({ concert, visa, flight }) => {
-        if (query && !normalizeText(concert.artist.name).includes(query)) return false;
+        if (query && !matchesArtist(concert.artist.name, concert.artist.slug, query)) return false;
         if (visaFreeOnly && !isVisaFree(visa)) return false;
         if (directOnly && flight && !flight.direct) return false;
         if (directOnly && !flight) return false;
@@ -106,7 +107,9 @@ export default function HomePage() {
           concerts: [],
         });
       }
-      groupMap.get(slug)!.concerts.push(item);
+      const group = groupMap.get(slug)!;
+      group.imageUrl ||= item.concert.artist.imageUrl;
+      group.concerts.push(item);
     }
     for (const group of groupMap.values()) {
       group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
@@ -132,73 +135,101 @@ export default function HomePage() {
     return Array.from(map.values()).sort((a, b) => a.rank - b.rank).slice(0, 12);
   }, [allConcerts]);
 
+  const effectiveDiscoverTab = discoverTab === "artists" && !loading && topArtists.length === 0
+    ? "destinations"
+    : discoverTab;
+
+  const filterSummary = [
+    passportOpts.find((option) => option.value === passport)?.label,
+    cityOpts.find((option) => option.value === originCity)?.label,
+    countryFilter ? countryLabel(countryFilter, lang) : "",
+    visaFreeOnly ? t("filter.visa_free", lang) : "",
+    directOnly ? t("filter.direct_flights", lang) : "",
+  ].filter(Boolean).join(" · ");
+
   const feelingLucky = () => {
     // Случайный из топовых артистов (отсортированы по популярности)
     const pool = artistGroups.slice(0, 25);
     if (pool.length === 0) return;
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    window.location.href = `/artist/${pick.slug}`;
+    router.push(`/artist/${pick.slug}`);
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
-      {/* Поиск + «Мне повезёт» */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("search.placeholder", lang)}
-            className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-3 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
-              ✕
+    <div className="max-w-7xl mx-auto px-4 py-5 space-y-6 sm:py-7">
+      <section className="relative rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 py-5 sm:px-8 sm:py-7 dark:border-zinc-800 dark:bg-zinc-900">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit] artist-search-glow" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-5">
+            <div>
+              <h1 className="max-w-3xl text-balance text-[clamp(2rem,5vw,3.6rem)] leading-[1.04] font-bold tracking-[-0.045em]">
+                {t("home.title", lang)}
+              </h1>
+              <p className="mt-2.5 text-sm text-zinc-600 dark:text-zinc-300 sm:text-base">
+                {t("home.subtitle", lang)}
+              </p>
+            </div>
+            <ConcertMapLink lang={lang} inSearch />
+          </div>
+          <div className="mt-5 flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="search"
+                aria-label={t("search.placeholder", lang)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t("search.placeholder", lang)}
+                className="rp-field min-h-12 w-full pl-12 pr-4 placeholder-zinc-500 dark:placeholder-zinc-400"
+              />
+            </div>
+            <button
+              onClick={feelingLucky}
+              disabled={loading || artistGroups.length === 0}
+              title={t("lucky.button", lang)}
+              aria-label={t("lucky.button", lang)}
+              className="rp-focus inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-orange-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-800 disabled:opacity-50 dark:bg-orange-400 dark:text-zinc-950 dark:hover:bg-orange-300"
+            >
+              <svg aria-hidden="true" className="size-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
+                <path d="M8 8h.01m4 4h.01m4 4h.01" strokeWidth="2.8" />
+              </svg>
+              <span className="hidden sm:inline">{t("lucky.button", lang)}</span>
             </button>
-          )}
-        </div>
-        <button
-          onClick={feelingLucky}
-          disabled={loading || artistGroups.length === 0}
-          title={t("lucky.button", lang)}
-          className="flex-shrink-0 flex items-center gap-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium hover:border-orange-500 hover:text-orange-500 dark:hover:text-orange-400 disabled:opacity-50 disabled:hover:border-zinc-300 dark:disabled:hover:border-zinc-800 transition-colors"
-        >
-          <span className="text-sm leading-none">🎲</span>
-          <span className="hidden sm:inline">{t("lucky.button", lang)}</span>
-        </button>
-      </div>
+          </div>
 
-      {/* Фильтры */}
-      <section className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 sm:p-6 border border-zinc-200 dark:border-zinc-800 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
-            onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
-          <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
-            onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
-          <SearchableSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
-            onChange={setCountryFilter} searchPlaceholder={lang === "ru" ? "Поиск страны..." : "Search country..."} />
-          <div className="flex flex-col justify-end gap-2">
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <div className="relative">
-                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
-                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
-              </div>
-              {t("filter.visa_free", lang)}
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <div className="relative">
-                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} className="sr-only peer" />
-                <div className="w-8 h-5 bg-zinc-300 dark:bg-zinc-700 rounded-full peer-checked:bg-orange-500 transition-colors" />
-                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-3 transition-transform" />
-              </div>
-              {t("filter.direct_flights", lang)}
-            </label>
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls="concert-filters"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="rp-focus mt-2.5 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-1 text-left text-sm font-semibold sm:hidden"
+          >
+            {t("home.filters", lang)}
+            <span className="truncate text-xs font-normal text-zinc-600 dark:text-zinc-400">
+              {filterSummary}
+            </span>
+            <svg aria-hidden="true" viewBox="0 0 20 20" className={`size-4 shrink-0 transition-transform ${filtersOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 5 5 5-5" /></svg>
+          </button>
+          <div id="concert-filters" className={`${filtersOpen ? "grid" : "hidden"} mt-3 grid-cols-2 gap-3 border-t border-zinc-200 pt-3 sm:grid lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] dark:border-zinc-700/75`}>
+            <SearchableSelect label={t("filter.passport", lang)} options={passportOpts} value={passport}
+              onChange={setPassport} searchPlaceholder={lang === "ru" ? "Поиск паспорта..." : "Search passport..."} />
+            <SearchableSelect label={t("filter.origin_city", lang)} options={cityOpts} value={originCity}
+              onChange={setOriginCity} searchPlaceholder={lang === "ru" ? "Поиск города..." : "Search city..."} />
+            <SearchableSelect label={t("filter.country", lang)} options={countryOptions} value={countryFilter}
+              onChange={setCountryFilter} searchPlaceholder={lang === "ru" ? "Поиск страны..." : "Search country..."} />
+            <div className="flex flex-col justify-end gap-1 lg:gap-0">
+              <label className="rp-filter-toggle">
+                <input type="checkbox" checked={visaFreeOnly} onChange={(e) => setVisaFreeOnly(e.target.checked)} />
+                <span>{t("filter.visa_free", lang)}</span>
+              </label>
+              <label className="rp-filter-toggle">
+                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} />
+                <span>{t("filter.direct_flights", lang)}</span>
+              </label>
+            </div>
           </div>
         </div>
       </section>
@@ -207,15 +238,17 @@ export default function HomePage() {
       <section>
         <div className="flex items-center gap-2 mb-3">
           {([
-            ["artists", `🔥 ${t("discover.artists", lang)}`],
-            ["destinations", `📍 ${t("discover.destinations", lang)}`],
-          ] as const).map(([key, label]) => (
+            ["artists", t("discover.artists", lang)],
+            ["destinations", t("discover.destinations", lang)],
+          ] as const).filter(([key]) => key !== "artists" || loading || topArtists.length > 0).map(([key, label]) => (
             <button
               key={key}
+              type="button"
+              aria-pressed={effectiveDiscoverTab === key}
               onClick={() => setDiscoverTab(key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                discoverTab === key
-                  ? "bg-orange-500/15 text-orange-600 dark:text-orange-400"
+              className={`rp-focus min-h-10 px-3 py-1.5 rounded-[10px] text-sm font-semibold transition-colors ${
+                effectiveDiscoverTab === key
+                  ? "bg-orange-500/12 text-orange-800 dark:text-orange-300"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               }`}
             >
@@ -224,7 +257,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        {discoverTab === "artists" ? (
+        {effectiveDiscoverTab === "artists" ? (
           <div className="flex gap-4 overflow-x-auto px-1 py-2 -mx-1 scrollbar-hide">
             {loading
               ? Array.from({ length: 10 }).map((_, i) => (
@@ -251,13 +284,14 @@ export default function HomePage() {
             {popularDestinations.map((dest) => (
               <button key={dest.city}
                 onClick={() => setCountryFilter(countryFilter === dest.countryCode ? "" : dest.countryCode)}
-                className={`flex-shrink-0 px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
+                aria-pressed={countryFilter === dest.countryCode}
+                className={`rp-focus inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3.5 text-sm font-medium transition-colors ${
                   countryFilter === dest.countryCode
                     ? "bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400"
                     : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
                 }`}
               >
-                <span className="text-lg mr-2">{dest.emoji}</span>
+                <span aria-hidden="true" className="text-base leading-none">{dest.emoji}</span>
                 {lang === "en" ? dest.cityEn : dest.city}
               </button>
             ))}
@@ -267,7 +301,7 @@ export default function HomePage() {
 
       {/* Список артистов */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">
+        <h2 className="mb-3 text-xl font-semibold tracking-tight">
           {t("section.concerts", lang)}{" "}
           <span className="text-zinc-400 dark:text-zinc-500 font-normal text-sm">
             ({loading ? "..." : `${totalConcerts} ${pluralizeI18n(totalConcerts, lang, "событие", "события", "событий", "event", "events")}, ${artistGroups.length} ${pluralizeI18n(artistGroups.length, lang, "артист", "артиста", "артистов", "artist", "artists")}`})
@@ -292,53 +326,54 @@ export default function HomePage() {
             const hasVisaFree = visaFreeConcerts.length > 0;
 
             return (
-              <div key={group.slug}
-                className="bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
-                <a href={`/artist/${group.slug}`} className="flex gap-4 p-4 pb-2 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors">
-                  {group.imageUrl ? (
-                    <Image src={group.imageUrl} alt={group.artistName} width={56} height={56}
-                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0" unoptimized />
-                  ) : (
-                    <div className="w-14 h-14 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xl">♪</div>
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{group.artistName}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {group.concerts.length} {pluralizeI18n(group.concerts.length, lang, "концерт", "концерта", "концертов", "concert", "concerts")}
-                      </span>
-                      {hasVisaFree ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                          {t("visa.has_visa_free", lang)}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500 dark:text-red-400">
-                          {t("visa.needs_visa", lang)}
-                        </span>
-                      )}
+              <article key={group.slug}
+                className="flex min-w-0 flex-col rounded-2xl border border-zinc-200 bg-white transition-colors hover:border-orange-500/50 dark:border-zinc-800 dark:bg-zinc-900">
+                <Link href={`/artist/${group.slug}`}
+                  className="artist-cover group relative isolate flex min-h-36 items-end justify-between gap-2 overflow-hidden rounded-t-[15px] p-4 text-white focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400">
+                  {group.imageUrl && (
+                    <div className="artist-cover-photo absolute inset-y-0 right-0 -z-20 w-4/5">
+                      <Image src={group.imageUrl} alt="" fill sizes="(min-width: 1024px) 320px, (min-width: 640px) 40vw, 80vw"
+                        className="object-cover object-[50%_30%] motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-105"
+                        unoptimized onError={(event) => { event.currentTarget.hidden = true; }} />
                     </div>
+                  )}
+                  <span aria-hidden="true" className="artist-cover-shade absolute inset-0 -z-10" />
+                  <div className="min-w-0">
+                    <h3 className="text-balance text-[1.35rem] leading-tight font-bold tracking-tight transition-colors group-hover:text-orange-200">{group.artistName}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-200">
+                      {group.concerts.length} {pluralizeI18n(group.concerts.length, lang, "концерт", "концерта", "концертов", "show", "shows")}
+                      {hasVisaFree ? ` · ${t("visa.has_visa_free", lang)}` : ""}
+                    </p>
                   </div>
-                </a>
+                  <span aria-hidden="true" className="absolute right-3 top-3 grid size-8 place-items-center rounded-[10px] border border-white/25 bg-black/45 text-white transition-colors group-hover:bg-black/75">
+                    <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 15 15 5M6 5h9v9" /></svg>
+                  </span>
+                </Link>
 
-                <div className="px-4 pb-3 space-y-1.5">
+                <div className="flex-1 divide-y divide-zinc-100 px-3 py-1 dark:divide-zinc-800">
                   {preview.map(({ concert, visa, flight }) => (
-                    <a key={concert.id} href={`/concert/${concert.id}`}
-                      className="flex items-center justify-between gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors group">
-                      <div className="min-w-0">
-                        <p className="text-sm truncate group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors">
-                          {concert.city}{concert.country ? `, ${concert.country}` : ""}
+                    <Link key={concert.id} href={`/concert/${concert.id}`}
+                      className="group flex min-h-16 items-center gap-3 rounded-lg px-2 py-2 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:bg-zinc-800/50">
+                      <span className="w-[4.25rem] shrink-0 text-xs leading-snug font-semibold tabular-nums text-orange-800 dark:text-orange-300">
+                        {formatConcertDate(concert, lang)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold group-hover:text-orange-700 dark:group-hover:text-orange-400">
+                          {concertLocation(concert, lang)}
                         </p>
-                        <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                          {new Date(concert.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
-                          {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
-                          {" · "}{concert.venue}
-                        </p>
+                        {(concert.venue || concert.time) && (
+                          <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">
+                            {[concert.venue, concert.time?.slice(0, 5)].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                            isVisaFree(visa)
-                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                              : "bg-red-500/15 text-red-500 dark:text-red-400"
+                            visa === "visa_free" ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                              : (visa === "evisa" || visa === "eta") ? "bg-amber-500/15 text-amber-900 dark:text-amber-300"
+                              : visa === "visa_on_arrival" ? "bg-lime-500/15 text-lime-800 dark:text-lime-300"
+                              : visa === "unknown" ? "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
+                              : "bg-red-500/10 text-red-800 dark:text-red-300"
                           }`}>
                             {visaLabel(visa)}
                           </span>
@@ -350,7 +385,7 @@ export default function HomePage() {
                           </span>
                         ) : null}
                       </div>
-                    </a>
+                    </Link>
                   ))}
                 </div>
 
@@ -360,16 +395,18 @@ export default function HomePage() {
                     {t("nav.more", lang)} {remaining} {pluralizeI18n(remaining, lang, "концерт", "концерта", "концертов", "concert", "concerts")} →
                   </a>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
 
         {!loading && artistGroups.length === 0 && (
           <p className="text-center text-zinc-400 dark:text-zinc-500 py-12">
-            {searchQuery
-              ? (lang === "ru" ? `Артист «${searchQuery}» не найден` : `Artist "${searchQuery}" not found`)
-              : t("empty.no_concerts", lang)}
+            {catalogError
+              ? t("empty.catalog_unavailable", lang)
+              : searchQuery
+                ? (lang === "ru" ? `Артист «${searchQuery}» не найден` : `Artist "${searchQuery}" not found`)
+                : t("empty.no_concerts", lang)}
           </p>
         )}
       </section>

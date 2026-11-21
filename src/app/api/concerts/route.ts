@@ -1,50 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { unstable_cache } from "next/cache";
-import { fetchFeaturedConcerts, searchEventsByCountry } from "@/lib/ticketmaster";
-import { mockConcerts } from "@/data/concerts";
+import { searchEventsByCountry } from "@/lib/ticketmaster";
 import { cisConcerts } from "@/data/cis-artists";
+import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
+import { getFeaturedCached } from "@/lib/featured-concerts";
+import { clientIp, rateLimit } from "@/lib/security";
 
-// Кэшируем готовый список концертов на 1 час.
-// Роут динамический (читает searchParams), поэтому route-level revalidate
-// не работает — кэшируем саму дорогую агрегацию через unstable_cache.
-// После первого прогрева пользователь получает список мгновенно,
-// обновление происходит в фоне (stale-while-revalidate).
-const getFeaturedCached = unstable_cache(
-  async () => fetchFeaturedConcerts(),
-  ["featured-concerts"],
-  { revalidate: 3600 },
-);
+export const maxDuration = 120;
 
 export async function GET(request: NextRequest) {
   const country = request.nextUrl.searchParams.get("country");
   const keyword = request.nextUrl.searchParams.get("keyword");
+  if ((country && !/^[A-Z]{2}$/.test(country)) || (keyword && (!country || keyword.length > 120))) {
+    return NextResponse.json({ error: "invalid_query" }, { status: 400 });
+  }
+  if (country && !rateLimit(`country:${clientIp(request)}`, 20, 60_000)) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
+  const matchingCurated = filterUpcoming(cisConcerts).filter(
+    (concert) => !country || concert.countryCode === country,
+  );
+
+  if (!process.env.TICKETMASTER_API_KEY) return curatedResponse(matchingCurated);
 
   try {
-    let concerts;
-
-    if (country) {
-      const result = await searchEventsByCountry(country, { keyword: keyword ?? undefined });
-      concerts = result.concerts;
-      // Добавляем CIS-концерты по стране
-      const cisByCountry = cisConcerts.filter((c) => c.countryCode === country);
-      concerts = [...concerts, ...cisByCountry];
-    } else {
-      concerts = await getFeaturedCached();
-      // Добавляем все CIS-концерты к общему списку
-      concerts = [...concerts, ...cisConcerts];
-    }
-
-    // Скрываем прошедшие концерты
-    concerts = filterUpcoming(concerts);
-
-    // Фолбэк на моковые данные + CIS если API недоступен или нет ключа
-    if (concerts.length === 0) {
-      return NextResponse.json(filterUpcoming([...mockConcerts, ...cisConcerts]));
-    }
-
-    return NextResponse.json(concerts);
+    const ticketmaster = country
+      ? (await searchEventsByCountry(country, { keyword: keyword ?? undefined })).concerts
+      : await getFeaturedCached();
+    return NextResponse.json(filterUpcoming(mergeConcertSources(ticketmaster, matchingCurated)));
   } catch {
-    return NextResponse.json(filterUpcoming([...mockConcerts, ...cisConcerts]));
+    return curatedResponse(matchingCurated);
   }
+}
+
+function curatedResponse(concerts: typeof cisConcerts) {
+  if (concerts.length > 0) return NextResponse.json(concerts);
+  return NextResponse.json({ error: "catalog_unavailable" }, { status: 503 });
 }

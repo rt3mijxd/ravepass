@@ -5,11 +5,10 @@ import { useSettings } from "@/components/SettingsContext";
 import { t } from "@/lib/i18n";
 
 interface FeedbackModalProps {
-  open: boolean;
   onClose: () => void;
 }
 
-export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
+export default function FeedbackModal({ onClose }: FeedbackModalProps) {
   const { lang } = useSettings();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -20,36 +19,18 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
 
   // Закрытие по Escape
   useEffect(() => {
-    if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [onClose]);
 
-  // Блокировка скролла body
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
-
-  // Сброс формы при открытии
-  useEffect(() => {
-    if (open) {
-      setName("");
-      setEmail("");
-      setMessage("");
-      setMissingArtist("");
-      setStatus("idle");
-    }
-  }, [open]);
-
-  if (!open) return null;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +66,8 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
     >
       <div
         ref={modalRef}
-        className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        role="dialog" aria-modal="true" aria-label={t("feedback.title", lang)}
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Заголовок */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">

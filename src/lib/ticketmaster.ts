@@ -1,33 +1,25 @@
 import type { Concert } from "@/types";
 import { slugify } from "@/lib/slug";
-import { TOP_WORLD_ARTISTS } from "@/data/topArtists";
+import { countryLabel } from "@/lib/country-label";
+import { httpsUrl } from "@/lib/security";
+import { canonicalArtistSlug, TOP_CIS_ARTISTS, TOP_WORLD_ARTISTS } from "@/data/topArtists";
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 const API_KEY = process.env.TICKETMASTER_API_KEY || "";
 
-// Маппинг ISO кодов стран в русские названия
-const countryRuNames: Record<string, string> = {
-  TR: "Турция", RS: "Сербия", ME: "Черногория", BA: "Босния и Герцеговина",
-  AE: "ОАЭ", TH: "Таиланд", GE: "Грузия", AM: "Армения",
-  KZ: "Казахстан", KG: "Кыргызстан", UZ: "Узбекистан", AZ: "Азербайджан",
-  BY: "Беларусь", AR: "Аргентина", BR: "Бразилия", CU: "Куба",
-  MN: "Монголия", MD: "Молдова", QA: "Катар", BH: "Бахрейн",
-  OM: "Оман", EG: "Египет", MA: "Марокко", TN: "Тунис",
-  JO: "Иордания", LB: "Ливан", LK: "Шри-Ланка", MY: "Малайзия",
-  ID: "Индонезия", KR: "Южная Корея", CN: "Китай", IL: "Израиль",
-  MX: "Мексика", DE: "Германия", FR: "Франция", ES: "Испания",
-  IT: "Италия", NL: "Нидерланды", PT: "Португалия", AT: "Австрия",
-  CZ: "Чехия", PL: "Польша", SE: "Швеция", FI: "Финляндия",
-  NO: "Норвегия", DK: "Дания", BE: "Бельгия", GR: "Греция",
-  HU: "Венгрия", GB: "Великобритания", US: "США", CA: "Канада",
-  AU: "Австралия", JP: "Япония", SG: "Сингапур",
-};
+interface TMAttraction {
+  id: string;
+  name: string;
+  classifications?: { genre?: { name: string } }[];
+  images?: { url: string; width: number; ratio?: string }[];
+}
 
 interface TMEvent {
   id: string;
   name: string;
   url: string;
   dates: {
+    status?: { code?: string };
     start: {
       localDate?: string;
       localTime?: string;
@@ -41,17 +33,14 @@ interface TMEvent {
       city?: { name: string };
       country?: { countryCode: string; name: string };
     }[];
-    attractions?: {
-      name: string;
-      classifications?: { genre?: { name: string } }[];
-      images?: { url: string; width: number; ratio?: string }[];
-    }[];
+    attractions?: TMAttraction[];
   };
 }
 
 interface TMResponse {
   _embedded?: {
-    events: TMEvent[];
+    events?: TMEvent[];
+    attractions?: TMAttraction[];
   };
   page?: {
     totalElements: number;
@@ -69,24 +58,30 @@ function pickImage(images?: { url: string; width: number; ratio?: string }[]): s
   return fallback?.url ?? images[0].url;
 }
 
-function parseTMEvent(event: TMEvent): Concert | null {
+function parseTMEvent(event: TMEvent, artist?: TMAttraction): Concert | null {
   const venue = event._embedded?.venues?.[0];
-  const attraction = event._embedded?.attractions?.[0];
-  const countryCode = venue?.country?.countryCode ?? "";
+  const attraction = artist ?? event._embedded?.attractions?.[0];
+  const countryCode = (venue?.country?.countryCode ?? "").toUpperCase().replace(/^UK$/, "GB");
   const city = venue?.city?.name ?? "";
-  const date = event.dates.start.localDate ?? "";
+  const date = event.dates?.start?.localDate ?? "";
 
-  if (!city || !date) return null;
+  if (!city || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^[A-Z]{2}$/.test(countryCode)
+    || !/^[A-Za-z0-9_-]{1,80}$/.test(event.id)) return null;
+  const status = event.dates?.status?.code?.toLowerCase();
+  if (status === "canceled" || status === "postponed") return null;
 
   const genre = attraction?.classifications?.[0]?.genre?.name ?? "";
   const artistName = attraction?.name ?? event.name;
-  const artistImage = pickImage(attraction?.images) || pickImage(event.images);
+  const artistImage = httpsUrl(pickImage(attraction?.images)) || httpsUrl(pickImage(event.images));
+  if (!artistName?.trim() || !canonicalArtistSlug(artistName)) return null;
 
   // Извлекаем время начала
-  const time = event.dates.start.localTime ?? undefined;
+  const time = event.dates?.start?.localTime ?? undefined;
 
   // Извлекаем цены билетов
-  const priceRange = event.priceRanges?.[0];
+  const priceRange = event.priceRanges?.find(({ min, currency }) =>
+    Number.isFinite(min) && min >= 0 && /^[A-Z]{3}$/.test(currency),
+  );
   const priceMin = priceRange?.min ?? undefined;
   const priceMax = priceRange?.max ?? undefined;
   const currency = priceRange?.currency ?? undefined;
@@ -95,7 +90,7 @@ function parseTMEvent(event: TMEvent): Concert | null {
     id: `tm-${event.id}`,
     artist: {
       name: artistName,
-      slug: slugify(artistName),
+      slug: canonicalArtistSlug(artistName),
       imageUrl: artistImage,
       genre: genre === "Undefined" ? "" : genre,
     },
@@ -104,160 +99,148 @@ function parseTMEvent(event: TMEvent): Concert | null {
     priceMin,
     priceMax,
     currency,
+    soldOut: status === "soldout" || undefined,
     venue: venue?.name ?? "",
     city,
-    country: countryRuNames[countryCode] ?? venue?.country?.name ?? "",
+    country: countryLabel(countryCode, "en", venue?.country?.name),
     countryCode,
-    ticketUrl: event.url,
+    ticketUrl: httpsUrl(event.url),
   };
 }
 
-/**
- * Поиск концертов по стране
- */
+// Оставляем запас до лимита Ticketmaster (5 запросов/с). Ограничение локально для процесса.
+let nextRequestAt = 0;
+
+async function fetchTicketmaster(path: string, params: URLSearchParams, revalidate: number): Promise<Response> {
+  const now = Date.now();
+  const requestAt = Math.max(now, nextRequestAt);
+  nextRequestAt = requestAt + 225;
+  if (requestAt > now) {
+    await new Promise<void>((resolve) => setTimeout(resolve, requestAt - now));
+  }
+
+  params.set("apikey", API_KEY);
+  return fetch(`${BASE_URL}/${path}.json?${params}`, {
+    next: { revalidate },
+    signal: AbortSignal.timeout(8_000),
+  });
+}
+
+async function requestTicketmaster(
+  resource: "events" | "attractions",
+  params: URLSearchParams,
+  revalidate: number,
+): Promise<TMResponse> {
+  const response = await fetchTicketmaster(resource, params, revalidate);
+  if (!response.ok) throw new Error(`Ticketmaster ${resource}: HTTP ${response.status}`);
+  return response.json() as Promise<TMResponse>;
+}
+
+export async function getTicketmasterConcert(id: string): Promise<Concert | null> {
+  if (!API_KEY) throw new Error("Ticketmaster is not configured");
+  const response = await fetchTicketmaster(`events/${encodeURIComponent(id)}`, new URLSearchParams(), 3600);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Ticketmaster event: HTTP ${response.status}`);
+  return parseTMEvent(await response.json() as TMEvent);
+}
+
+function upcomingSince(): string {
+  // Запас в сутки сохраняет концерты, у которых сегодня ещё не закончилось по местному времени.
+  return `${new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)}T00:00:00Z`;
+}
+
 export async function searchEventsByCountry(
   countryCode: string,
-  options: { page?: number; size?: number; keyword?: string; sort?: string } = {}
+  options: { page?: number; size?: number; keyword?: string; sort?: string } = {},
 ): Promise<{ concerts: Concert[]; totalPages: number }> {
   if (!API_KEY) return { concerts: [], totalPages: 0 };
 
   const { page = 0, size = 50, keyword, sort = "relevance,desc" } = options;
   const params = new URLSearchParams({
-    apikey: API_KEY,
     countryCode,
     classificationName: "music",
     size: String(size),
     page: String(page),
     sort,
+    startDateTime: upcomingSince(),
   });
   if (keyword) params.set("keyword", keyword);
 
-  const url = `${BASE_URL}/events.json?${params}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) return { concerts: [], totalPages: 0 };
-
-  const data: TMResponse = await res.json();
-  const events = data._embedded?.events ?? [];
-  const concerts = events.map(parseTMEvent).filter((c): c is Concert => c !== null);
-
+  const data = await requestTicketmaster("events", params, 3600);
   return {
-    concerts,
+    concerts: (data._embedded?.events ?? []).flatMap((event) => {
+      const concert = parseTMEvent(event);
+      return concert ? [concert] : [];
+    }),
     totalPages: data.page?.totalPages ?? 0,
   };
 }
 
-/**
- * Поиск концертов по имени артиста
- */
-export async function searchEventsByArtist(
-  artistName: string,
-  options: { size?: number; maxPages?: number } = {}
-): Promise<Concert[]> {
-  if (!API_KEY) return [];
+const artistQueries = new Map(
+  [...TOP_WORLD_ARTISTS, ...TOP_CIS_ARTISTS].map((name) => [slugify(name), name]),
+);
 
-  const { size = 200, maxPages = 3 } = options;
-  const allConcerts: Concert[] = [];
+export async function searchEventsByArtist(name: string): Promise<Concert[]> {
+  const slug = canonicalArtistSlug(name);
+  const artistName = artistQueries.get(slug) ?? name;
+  if (!API_KEY || !slug) return [];
 
-  for (let page = 0; page < maxPages; page++) {
-    const params = new URLSearchParams({
-      apikey: API_KEY,
-      keyword: artistName,
+  const params = new URLSearchParams({ keyword: artistName, classificationName: "music", size: "25" });
+  const attractions = await requestTicketmaster("attractions", params, 604_800);
+  const artist = attractions._embedded?.attractions?.find((item) => canonicalArtistSlug(item.name) === slug);
+  const concerts = new Map<string, Concert>();
+  const pageSize = 200;
+  const startsAfter = upcomingSince();
+
+  for (let page = 0; page * pageSize < 1000; page++) {
+    const query = new URLSearchParams({
       classificationName: "music",
-      size: String(size),
+      size: String(pageSize),
       page: String(page),
       sort: "date,asc",
+      startDateTime: startsAfter,
     });
+    if (artist) query.set("attractionId", artist.id);
+    else query.set("keyword", artistName);
 
-    const url = `${BASE_URL}/events.json?${params}`;
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) break;
+    const data = await requestTicketmaster("events", query, 3600);
+    for (const event of data._embedded?.events ?? []) {
+      const matchingArtist = artist ?? event._embedded?.attractions?.find((item) => canonicalArtistSlug(item.name) === slug);
+      // При поиске по тексту проверяем исполнителя во всём лайнапе.
+      if (!matchingArtist) continue;
 
-    const data: TMResponse = await res.json();
-    const events = data._embedded?.events ?? [];
-    const concerts = events.map(parseTMEvent).filter((c): c is Concert => c !== null);
-    allConcerts.push(...concerts);
-
-    // Если это последняя страница — выходим
-    const totalPages = data.page?.totalPages ?? 1;
-    if (page + 1 >= totalPages) break;
+      const concert = parseTMEvent(event, matchingArtist);
+      if (concert) concerts.set(concert.id, concert);
+    }
+    if (page + 1 >= (data.page?.totalPages ?? 1)) break;
   }
 
-  return allConcerts;
+  return [...concerts.values()];
 }
 
-// Топовые мировые артисты — их концерты тянутся из Ticketmaster (реальные даты).
-// Список вынесен в общий модуль (используется и каруселью на главной).
-const TOP_ARTISTS = TOP_WORLD_ARTISTS;
+const topArtistSlugs = new Set(TOP_WORLD_ARTISTS.map(slugify));
 
-// Набор для быстрой проверки (в нижнем регистре)
-const topArtistSet = new Set(TOP_ARTISTS.map((a) => a.toLowerCase()));
-
-/**
- * Загружаем концерты: сначала топовые артисты, потом популярное по странам
- */
 export async function fetchFeaturedConcerts(): Promise<Concert[]> {
-  // 1. Концерты топовых артистов (параллельно, по 10 за раз чтобы не превысить лимит)
-  const artistBatches = [];
-  for (let i = 0; i < TOP_ARTISTS.length; i += 10) {
-    artistBatches.push(TOP_ARTISTS.slice(i, i + 10));
-  }
+  const artists = [...TOP_WORLD_ARTISTS, ...TOP_CIS_ARTISTS];
+  const countries = ["TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL", "MA"];
+  const queries = [
+    ...artists.map((name) => () => searchEventsByArtist(name)),
+    ...countries.map((code) => async () => (await searchEventsByCountry(code)).concerts),
+  ];
 
-  const allConcerts: Concert[] = [];
-  const seenIds = new Set<string>();
-
-  for (const batch of artistBatches) {
-    const results = await Promise.allSettled(
-      // 1 страница (200 событий) на артиста — для главной этого достаточно,
-      // а число запросов к TM остаётся в пределах лимита
-      batch.map((name) => searchEventsByArtist(name, { size: 200, maxPages: 1 }))
-    );
+  const concerts = new Map<string, Concert>();
+  for (let i = 0; i < queries.length; i += 5) {
+    // Любая ошибка прерывает сборку каталога, чтобы частичный результат не заменил кэш.
+    const results = await Promise.all(queries.slice(i, i + 5).map((query) => query()));
     for (const result of results) {
-      if (result.status === "fulfilled") {
-        for (const c of result.value) {
-          if (!seenIds.has(c.id)) {
-            seenIds.add(c.id);
-            allConcerts.push(c);
-          }
-        }
+      for (const concert of result) {
+        if (!concerts.has(concert.id)) concerts.set(concert.id, concert);
       }
     }
   }
 
-  // 2. Дополняем популярным из безвизовых стран (по relevance)
-  const visaFreeCountries = ["TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL", "MA"];
-
-  const countryResults = await Promise.allSettled(
-    visaFreeCountries.map((code) =>
-      searchEventsByCountry(code, { size: 50, sort: "relevance,desc" })
-    )
-  );
-
-  for (const result of countryResults) {
-    if (result.status === "fulfilled") {
-      for (const c of result.value.concerts) {
-        if (!seenIds.has(c.id)) {
-          seenIds.add(c.id);
-          allConcerts.push(c);
-        }
-      }
-    }
-  }
-
-  // 3. Дедупликация: убираем концерты с одинаковым артистом, городом и датой
-  const dedupMap = new Map<string, Concert>();
-  for (const c of allConcerts) {
-    const key = `${c.artist.slug}|${c.city}|${c.date}`;
-    if (!dedupMap.has(key)) {
-      dedupMap.set(key, c);
-    }
-  }
-  const deduped = Array.from(dedupMap.values());
-
-  // 4. Сортировка: топовые артисты первыми, потом по дате
-  return deduped.sort((a, b) => {
-    const aTop = topArtistSet.has(a.artist.name.toLowerCase()) ? 0 : 1;
-    const bTop = topArtistSet.has(b.artist.name.toLowerCase()) ? 0 : 1;
-    if (aTop !== bTop) return aTop - bTop;
-    return a.date.localeCompare(b.date);
+  return [...concerts.values()].sort((a, b) => {
+    const priority = Number(topArtistSlugs.has(b.artist.slug)) - Number(topArtistSlugs.has(a.artist.slug));
+    return priority || a.date.localeCompare(b.date);
   });
 }

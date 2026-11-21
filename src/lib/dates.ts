@@ -1,3 +1,5 @@
+import type { Lang } from "@/lib/i18n";
+
 /**
  * Утилиты для работы с датами концертов.
  * Прошедшие концерты не должны показываться пользователю.
@@ -16,7 +18,19 @@ export function isUpcoming(date: string): boolean {
 }
 
 // Оставляет только предстоящие концерты
-export function filterUpcoming<T extends { date: string }>(items: T[]): T[] {
+export function filterUpcoming<T extends { date: string; dateEnd?: string }>(items: T[]): T[] {
   const today = todayStr();
-  return items.filter((i) => i.date && i.date >= today);
+  return items.filter((i) => i.date && (i.dateEnd ?? i.date) >= today);
+}
+
+export function formatConcertDate(
+  concert: { date: string; dateEnd?: string },
+  lang: Lang,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" },
+): string {
+  const formatter = new Intl.DateTimeFormat(lang, { ...options, timeZone: "UTC" });
+  const start = new Date(`${concert.date}T12:00:00Z`);
+  return concert.dateEnd
+    ? formatter.formatRange(start, new Date(`${concert.dateEnd}T12:00:00Z`))
+    : formatter.format(start);
 }

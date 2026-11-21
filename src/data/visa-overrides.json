@@ -1,0 +1,54 @@
+{
+  "RU": {
+    "TH": {
+      "status": "visa_free",
+      "days": 30,
+      "verified": "2026-11-21",
+      "source": "https://moscow.thaiembassy.org/en/publicservice/revision-of-thailand-s-visa-exemption-and-visa-on-arrival-schemes"
+    },
+    "IL": {
+      "status": "eta",
+      "days": null,
+      "verified": "2026-11-21",
+      "source": "https://embassies.gov.il/russia/en/node/7409"
+    },
+    "FI": {
+      "status": "entry_restricted",
+      "days": null,
+      "verified": "2026-11-21",
+      "source": "https://finlandabroad.fi/web/eu/current-affairs/-/asset_publisher/cGFGQPXL1aKg/content/usein-kysytyt-kysymykset-venajan-kansalaisten-maahantulorajoituksia-koskevasta-periaatepaatoksesta-12.11.2026/35732"
+    }
+  },
+  "AM": {
+    "TH": {
+      "status": "visa_required",
+      "days": null,
+      "verified": "2026-11-21",
+      "source": "https://moscow.thaiembassy.org/en/publicservice/revision-of-thailand-s-visa-exemption-and-visa-on-arrival-schemes"
+    }
+  },
+  "UZ": {
+    "TH": {
+      "status": "visa_required",
+      "days": null,
+      "verified": "2026-11-21",
+      "source": "https://moscow.thaiembassy.org/en/publicservice/revision-of-thailand-s-visa-exemption-and-visa-on-arrival-schemes"
+    }
+  },
+  "BY": {
+    "TH": {
+      "status": "visa_on_arrival",
+      "days": 15,
+      "verified": "2026-11-21",
+      "source": "https://moscow.thaiembassy.org/en/publicservice/revision-of-thailand-s-visa-exemption-and-visa-on-arrival-schemes"
+    }
+  },
+  "MD": {
+    "TH": {
+      "status": "visa_required",
+      "days": null,
+      "verified": "2026-11-21",
+      "source": "https://moscow.thaiembassy.org/en/publicservice/revision-of-thailand-s-visa-exemption-and-visa-on-arrival-schemes"
+    }
+  }
+}

@@ -1,62 +1,6 @@
 export type Lang = "ru" | "en";
 export type Currency = "RUB" | "USD" | "EUR";
 
-// Примерные курсы для пересчёта (базовая валюта — USD)
-// Перелёты у нас в рублях, билеты из TM — в разных валютах
-export const exchangeRates: Record<string, Record<Currency, number>> = {
-  USD: { RUB: 92, USD: 1, EUR: 0.92 },
-  EUR: { RUB: 100, USD: 1.09, EUR: 1 },
-  GBP: { RUB: 116, USD: 1.27, EUR: 1.16 },
-  CAD: { RUB: 67, USD: 0.73, EUR: 0.67 },
-  AUD: { RUB: 60, USD: 0.65, EUR: 0.60 },
-  RUB: { RUB: 1, USD: 0.011, EUR: 0.010 },
-  MXN: { RUB: 5.3, USD: 0.058, EUR: 0.053 },
-  BRL: { RUB: 18, USD: 0.20, EUR: 0.18 },
-  PLN: { RUB: 23, USD: 0.25, EUR: 0.23 },
-  CZK: { RUB: 4, USD: 0.044, EUR: 0.040 },
-  SEK: { RUB: 8.8, USD: 0.096, EUR: 0.088 },
-  NOK: { RUB: 8.5, USD: 0.093, EUR: 0.085 },
-  DKK: { RUB: 13.4, USD: 0.146, EUR: 0.134 },
-  HUF: { RUB: 0.25, USD: 0.0027, EUR: 0.0025 },
-  TRY: { RUB: 2.7, USD: 0.029, EUR: 0.027 },
-  AED: { RUB: 25, USD: 0.27, EUR: 0.25 },
-  THB: { RUB: 2.6, USD: 0.029, EUR: 0.026 },
-  KRW: { RUB: 0.067, USD: 0.00073, EUR: 0.00067 },
-  JPY: { RUB: 0.60, USD: 0.0065, EUR: 0.0060 },
-  SGD: { RUB: 69, USD: 0.75, EUR: 0.69 },
-  NZD: { RUB: 55, USD: 0.60, EUR: 0.55 },
-  ZAR: { RUB: 5, USD: 0.054, EUR: 0.050 },
-};
-
-/**
- * Конвертирует сумму из одной валюты в целевую.
- * Если курс неизвестен — возвращает в исходной валюте.
- */
-export function convertPrice(amount: number, fromCurrency: string, toCurrency: Currency): number {
-  if (fromCurrency === toCurrency) return amount;
-  const rates = exchangeRates[fromCurrency];
-  if (!rates) return amount; // неизвестная валюта — не конвертируем
-  return Math.round(amount * rates[toCurrency]);
-}
-
-/**
- * Форматирует цену с символом валюты
- */
-export function formatPrice(amount: number, currency: Currency, lang: Lang): string {
-  const formatted = amount.toLocaleString(lang === "ru" ? "ru-RU" : "en-US");
-  switch (currency) {
-    case "RUB": return `${formatted} ₽`;
-    case "USD": return `$${formatted}`;
-    case "EUR": return `€${formatted}`;
-  }
-}
-
-export const currencySymbols: Record<Currency, string> = {
-  RUB: "₽",
-  USD: "$",
-  EUR: "€",
-};
-
 // ==================== ПЕРЕВОДЫ ====================
 
 const translations = {
@@ -79,6 +23,9 @@ const translations = {
   "consent.policy": { ru: "политике конфиденциальности", en: "privacy policy" },
 
   // Поиск
+  "home.title": { ru: "Концерты за рубежом", en: "Concerts abroad" },
+  "home.subtitle": { ru: "Найди, где выступает любимый артист. Выбери поездку по визе и прямым рейсам.", en: "Find your favorite artists on tour. Filter by visa requirements and direct flights." },
+  "home.filters": { ru: "Фильтры", en: "Filters" },
   "search.placeholder": { ru: "Найти артиста...", en: "Search artist..." },
   "lucky.button": { ru: "Мне повезёт", en: "I'm feeling lucky" },
 
@@ -87,7 +34,7 @@ const translations = {
   "filter.origin_city": { ru: "Город вылета", en: "Departure city" },
   "filter.country": { ru: "Страна", en: "Country" },
   "filter.all_countries": { ru: "Все страны", en: "All countries" },
-  "filter.visa_free": { ru: "Без визы", en: "Visa-free" },
+  "filter.visa_free": { ru: "Без обычной визы", en: "No standard visa" },
   "filter.direct_flights": { ru: "Прямые рейсы", en: "Direct flights" },
 
   // Паспорта
@@ -114,9 +61,12 @@ const translations = {
   // Визовые статусы
   "visa.visa_free": { ru: "Без визы", en: "Visa-free" },
   "visa.visa_on_arrival": { ru: "Виза по прилёту", en: "Visa on arrival" },
+  "visa.eta": { ru: "Нужно разрешение ETA", en: "ETA required" },
+  "visa.entry_restricted": { ru: "Въезд ограничен", en: "Entry restricted" },
+  "visa.unknown": { ru: "Уточните правила", en: "Check entry rules" },
   "visa.evisa": { ru: "Электронная виза", en: "E-visa" },
   "visa.visa_required": { ru: "Нужна виза", en: "Visa required" },
-  "visa.has_visa_free": { ru: "Есть без визы", en: "Visa-free available" },
+  "visa.has_visa_free": { ru: "Есть без обычной визы", en: "No standard visa options" },
   "visa.needs_visa": { ru: "Нужна виза", en: "Visa needed" },
 
   // Перелёты
@@ -124,21 +74,26 @@ const translations = {
   "flight.connection": { ru: "Пересадка", en: "Connection" },
   "flight.direct_full": { ru: "Прямой рейс", en: "Direct flight" },
   "flight.connection_full": { ru: "С пересадкой", en: "With connection" },
-  "flight.no_data": { ru: "Нет данных о прямых рейсах из", en: "No direct flights from" },
+  "flight.no_data": { ru: "Нет данных о перелётах из", en: "No flight data from" },
 
   // Детали концерта
   "concert.not_found": { ru: "Концерт не найден", en: "Concert not found" },
   "concert.your_trip": { ru: "Ваша поездка", en: "Your trip" },
-  "concert.visa": { ru: "Виза", en: "Visa" },
+  "concert.visa": { ru: "Въезд в страну", en: "Entry requirements" },
   "concert.flight": { ru: "Перелёт", en: "Flight" },
   "concert.flight_from": { ru: "Перелёт от", en: "Flight from" },
   "concert.budget": { ru: "Примерный бюджет", en: "Estimated budget" },
   "concert.ticket": { ru: "Билет на концерт", en: "Concert ticket" },
+  "concert.rates": { ru: "Справочные курсы Frankfurter", en: "Frankfurter reference rates" },
   "concert.price_tbd": { ru: "Цена уточняется", en: "Price TBD" },
   "concert.total_from": { ru: "Итого от", en: "Total from" },
+  "concert.sold_out": { ru: "Билеты распроданы ↗", en: "Sold out ↗" },
   "concert.buy_tickets": { ru: "Купить билеты", en: "Buy tickets" },
   "concert.find_flights": { ru: "Найти авиабилеты", en: "Find flights" },
-  "concert.visa_updated": { ru: "Визовая информация актуальна на", en: "Visa info updated on" },
+  "concert.verify_entry": { ru: "Проверить правила въезда", en: "Check entry requirements" },
+  "concert.visa_verified": { ru: "Проверено по официальному источнику", en: "Checked against an official source" },
+  "concert.visa_source": { ru: "Официальный источник", en: "Official source" },
+  "concert.visa_updated": { ru: "Дата визового справочника", en: "Visa reference date" },
   "concert.all_concerts_by": { ru: "Все концерты", en: "All concerts by" },
   "concert.notify": { ru: "Хотите узнать о новых концертах", en: "Want to know about new concerts by" },
   "concert.notify_btn": { ru: "Уведомить о новых концертах", en: "Notify about new concerts" },
@@ -146,8 +101,8 @@ const translations = {
   // Страница артиста
   "artist.not_found": { ru: "Артист не найден", en: "Artist not found" },
   "artist.tour": { ru: "Тур", en: "Tour" },
-  "artist.available_visa_free": { ru: "без визы", en: "visa-free" },
-  "artist.no_visa_free": { ru: "нет без визы", en: "none visa-free" },
+  "artist.available_visa_free": { ru: "без обычной визы", en: "without a standard visa" },
+  "artist.no_visa_free": { ru: "нет без обычной визы", en: "none without a standard visa" },
   "artist.from": { ru: "от", en: "from" },
 
   // Навигация
@@ -161,6 +116,10 @@ const translations = {
 
   // Пустые состояния
   "empty.artist_not_found": { ru: "Артист «{query}» не найден", en: "Artist \"{query}\" not found" },
+  "empty.catalog_unavailable": {
+    ru: "Не удалось загрузить афишу. Попробуйте обновить страницу позже.",
+    en: "Couldn’t load the concert listings. Please try refreshing later.",
+  },
   "empty.no_concerts": { ru: "Концертов по выбранным фильтрам не найдено", en: "No concerts found for selected filters" },
 
   // Предложить артиста
@@ -175,6 +134,7 @@ const translations = {
 
   // Карта мира
   "nav.map": { ru: "Карта концертов", en: "Concert map" },
+  "nav.map_short": { ru: "Карта", en: "Map" },
 
   // Настройки в шапке (мобильное меню)
   "settings.menu": { ru: "Настройки", en: "Settings" },
@@ -188,10 +148,11 @@ const translations = {
   },
   "map.soon": { ru: "Скоро выступят", en: "Performing soon" },
   "map.no_concerts": { ru: "Концертов пока нет", en: "No concerts yet" },
+  "map.unavailable": { ru: "Не удалось загрузить карту", en: "Could not load the map" },
   "map.hint": { ru: "Колёсико мыши — зум, перетаскивание — перемещение", en: "Scroll to zoom, drag to pan" },
   "map.reset": { ru: "Сбросить", en: "Reset" },
   "map.click_hint": { ru: "Нажмите на страну, чтобы увидеть её концерты", en: "Click a country to see its concerts" },
-  "map.visa_free_only": { ru: "Только без визы", en: "Visa-free only" },
+  "map.visa_free_only": { ru: "Без обычной визы", en: "No standard visa" },
   "map.concerts_in": { ru: "Концерты в стране", en: "Concerts in" },
   "map.close": { ru: "Закрыть", en: "Close" },
 
@@ -208,7 +169,7 @@ const translations = {
   "subscribe.placeholder": { ru: "Ваш email", en: "Your email" },
   "subscribe.button": { ru: "Подписаться", en: "Subscribe" },
   "subscribe.button_short": { ru: "Уведомлять о концертах", en: "Get concert alerts" },
-  "subscribe.only_visa_free": { ru: "Только страны без визы", en: "Only visa-free countries" },
+  "subscribe.only_visa_free": { ru: "Без обычной визы", en: "No standard visa" },
   "subscribe.only_direct": { ru: "Только с прямым рейсом", en: "Only with direct flights" },
   "subscribe.filters_hint": { ru: "Фильтры по вашему паспорту и городу вылета", en: "Filtered by your passport and departure city" },
   "subscribe.sending": { ru: "Отправляем...", en: "Sending..." },

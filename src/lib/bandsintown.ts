@@ -152,7 +152,7 @@ export async function fetchAllFeaturedEvents(): Promise<Concert[]> {
   const uniqueArtists = [...new Set(allConcerts.map((c) => c.artist.name))];
   const artistInfoMap = new Map<string, BITArtist>();
 
-  const infoResults = await Promise.allSettled(
+  await Promise.allSettled(
     uniqueArtists.map(async (name) => {
       const info = await fetchArtistInfo(name);
       if (info) artistInfoMap.set(name, info);

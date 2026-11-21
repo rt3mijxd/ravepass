@@ -6,12 +6,14 @@ export type PassportCode = string;
 
 export type CityCode = "MOW" | "LED" | "ALA" | "EVN" | "TBS";
 
-export type VisaStatus = "visa_free" | "visa_on_arrival" | "evisa" | "visa_required";
+export type VisaStatus = "visa_free" | "visa_on_arrival" | "evisa" | "eta" | "visa_required" | "entry_restricted" | "unknown";
 
 export interface Concert {
   id: string;
   artist: ArtistSummary;
   date: string;
+  dateEnd?: string;
+  soldOut?: boolean;
   time?: string;           // "19:00:00" — время начала из Ticketmaster
   priceMin?: number;        // минимальная цена билета
   priceMax?: number;        // максимальная цена билета

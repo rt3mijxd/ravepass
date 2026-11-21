@@ -1,0 +1,30 @@
+name: Visa rule review
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the public visa snapshot
+        run: |
+          mkdir -p "$RUNNER_TEMP/visa-source"
+          for file in index.json visa-matrix.csv; do
+            curl --fail --silent --show-error --location --max-time 30 --retry 2 \
+              "https://travelrequirements.info/data/$file" -o "$RUNNER_TEMP/visa-source/$file"
+          done
+      - name: Compare visa rules
+        run: python3 scripts/check-visas.py --source-dir "$RUNNER_TEMP/visa-source" --report visa-review.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visa-review
+          path: visa-review.csv
+          retention-days: 14

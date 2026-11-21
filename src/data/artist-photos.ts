@@ -1,0 +1,42 @@
+export const artistPhotos = {
+  "little-big": {
+    name: "Little Big",
+    imageUrl: "/artist-photos/little-big.webp",
+    credit: "Alexander Podgorchuk / klops.ru",
+    source: "https://commons.wikimedia.org/wiki/File:Little_Big_Kaliningrad_2019.jpg",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+  },
+  "poshlaya-molly": {
+    name: "Пошлая Молли",
+    imageUrl: "/artist-photos/poshlaya-molly.webp",
+    credit: "Okras",
+    source: "https://commons.wikimedia.org/wiki/File:Кирилл_Бледный_на_фестивале_Маятник_Фуко_в_СПб_(07.09.2019)_(5)_(cropped).jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  },
+  "bi-2": {
+    name: "Би-2",
+    imageUrl: "/artist-photos/bi-2.webp",
+    credit: "Reactor691",
+    source: "https://commons.wikimedia.org/wiki/File:B2band_chartova_nazipov_2018.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  },
+  morgenshtern: {
+    name: "MORGENSHTERN",
+    imageUrl: "/artist-photos/morgenshtern.webp",
+    credit: "CLUB SUMMER GARDEN Alanya",
+    source: "https://commons.wikimedia.org/wiki/File:Morgenshtern_(Jul_2024).png",
+    license: "CC BY 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/3.0/",
+  },
+  "noize-mc": {
+    name: "Noize MC",
+    imageUrl: "/artist-photos/noize-mc.webp",
+    credit: "Justice for the Beholder of the Harvester of Blackened Straw",
+    source: "https://commons.wikimedia.org/wiki/File:Noize_MC_in_London_10_September_2025.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  },
+};

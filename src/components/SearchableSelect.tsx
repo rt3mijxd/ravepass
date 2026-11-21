@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useId } from "react";
 
 interface Option {
   value: string;
@@ -20,6 +20,8 @@ export default function SearchableSelect({ label, options, value, onChange, sear
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const controlId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
@@ -50,25 +52,42 @@ export default function SearchableSelect({ label, options, value, onChange, sear
   const popularOptions = filtered.filter((o) => o.group === "popular");
   const allOptions = filtered.filter((o) => o.group !== "popular");
 
+  function closeAndFocus() {
+    setIsOpen(false);
+    setSearch("");
+    triggerRef.current?.focus();
+  }
+
   return (
-    <div ref={ref} className="relative">
-      <span className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{label}</span>
+    <div ref={ref} className="relative min-w-0" onKeyDown={(event) => {
+      if (!isOpen || event.key !== "Escape") return;
+      event.stopPropagation();
+      closeAndFocus();
+    }}>
+      <span id={`${controlId}-label`} className="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">{label}</span>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-left hover:border-zinc-400 dark:hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+        ref={triggerRef}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? `${controlId}-options` : undefined}
+        aria-labelledby={`${controlId}-label ${controlId}-value`}
+        onClick={() => {
+          if (isOpen) closeAndFocus();
+          else setIsOpen(true);
+        }}
+        className="rp-field flex min-h-11 w-full items-center justify-between px-3 text-left font-medium aria-expanded:border-orange-500"
       >
-        <span className="truncate">{selectedLabel}</span>
+        <span id={`${controlId}-value`} className="truncate">{selectedLabel}</span>
         <svg
           className={`w-4 h-4 text-zinc-400 flex-shrink-0 ml-2 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.65} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-xl overflow-hidden">
+        <div id={`${controlId}-options`} className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
           <div className="p-2 border-b border-zinc-200 dark:border-zinc-700">
             <input
               ref={inputRef}
@@ -76,7 +95,8 @@ export default function SearchableSelect({ label, options, value, onChange, sear
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded px-2.5 py-1.5 text-sm placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              aria-label={searchPlaceholder}
+              className="rp-field min-h-9 w-full px-2.5 placeholder-zinc-500 dark:placeholder-zinc-400"
             />
           </div>
 
@@ -87,10 +107,11 @@ export default function SearchableSelect({ label, options, value, onChange, sear
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => { onChange(option.value); setIsOpen(false); setSearch(""); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    aria-pressed={option.value === value}
+                    onClick={() => { onChange(option.value); closeAndFocus(); }}
+                    className={`block min-h-10 w-full px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-orange-600 ${
                       option.value === value
-                        ? "bg-orange-500/20 text-orange-600 dark:text-orange-400"
+                        ? "bg-orange-500/15 font-semibold text-orange-800 dark:text-orange-300"
                         : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
                     }`}
                   >
@@ -107,10 +128,11 @@ export default function SearchableSelect({ label, options, value, onChange, sear
               <button
                 key={option.value}
                 type="button"
-                onClick={() => { onChange(option.value); setIsOpen(false); setSearch(""); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                aria-pressed={option.value === value}
+                onClick={() => { onChange(option.value); closeAndFocus(); }}
+                className={`block min-h-10 w-full px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-orange-600 ${
                   option.value === value
-                    ? "bg-orange-500/20 text-orange-600 dark:text-orange-400"
+                    ? "bg-orange-500/15 font-semibold text-orange-800 dark:text-orange-300"
                     : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
                 }`}
               >

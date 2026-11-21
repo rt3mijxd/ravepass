@@ -1,13 +1,15 @@
 "use client";
 
+import { formatConcertDate } from "@/lib/dates";
+import { countryLabel } from "@/lib/country-label";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { geoNaturalEarth1, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import type { FeatureCollection, Feature, Geometry } from "geojson";
 import type { Topology } from "topojson-specification";
-import { mockConcerts } from "@/data/concerts";
-import { getVisaStatus, isVisaFree, countryNames } from "@/data/visas";
+import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import { numericToAlpha2, WORLD_ATLAS_URL } from "@/lib/geo";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -23,6 +25,9 @@ const MAP_H = 500;
 const visaColors: Record<VisaStatus, string> = {
   visa_free: "#10b981",      // emerald
   visa_on_arrival: "#84cc16", // lime
+  eta: "#38bdf8",            // sky
+  entry_restricted: "#a855f7", // purple
+  unknown: "#52525b",       // zinc
   evisa: "#f59e0b",          // amber
   visa_required: "#ef4444",  // red
 };
@@ -35,23 +40,23 @@ interface CountryStats {
 type CountryFeature = Feature<Geometry, { name?: string }>;
 
 export default function MapPage() {
-  const { lang } = useSettings();
+  const { lang, passport, setPassport, originCity, setOriginCity } = useSettings();
   const [features, setFeatures] = useState<CountryFeature[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [passport, setPassport] = useState("RU");
-  const [originCity, setOriginCity] = useState("MOW");
+  const [mapError, setMapError] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
   const [directOnly, setDirectOnly] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<{ id: string; a2: string; name: string; x: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState<{ id: string; a2: string; fallbackName: string; x: number; y: number } | null>(null);
   const [tf, setTf] = useState({ k: 1, x: 0, y: 0 });
 
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const tfRef = useRef(tf);
-  tfRef.current = tf;
+  useEffect(() => { tfRef.current = tf; }, [tf]);
   const dragRef = useRef<{ startX: number; startY: number; tx: number; ty: number } | null>(null);
   const movedRef = useRef(false);
 
@@ -62,19 +67,22 @@ export default function MapPage() {
   useEffect(() => {
     Promise.all([
       fetch(WORLD_ATLAS_URL)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) throw new Error("Could not load map");
+          return res.json();
+        })
         .then((topo: Topology) => {
           const fc = feature(topo, topo.objects.countries) as unknown as FeatureCollection<Geometry, { name?: string }>;
           setFeatures(fc.features.filter((f) => Number(f.id) !== 10));
-        }),
-      fetch("/api/concerts")
-        .then((res) => res.json())
-        .then((data: Concert[]) => {
-          setConcerts(Array.isArray(data) && data.length > 0 ? data : mockConcerts);
         })
-        .catch(() => setConcerts(mockConcerts)),
+        .catch(() => setMapError(true)),
+      fetch("/api/concerts")
+        .then(async (res) => {
+          if (!res.ok) throw new Error("Could not load concerts");
+          setConcerts(await res.json() as Concert[]);
+        })
+        .catch(() => setCatalogError(true)),
     ])
-      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -178,9 +186,8 @@ export default function MapPage() {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const name = (lang === "ru" && a2 && countryNames[a2]) ? countryNames[a2] : fallbackName;
     setHovered({
-      id, a2, name,
+      id, a2, fallbackName,
       x: Math.min(e.clientX - rect.left + 12, rect.width - 230),
       y: Math.min(e.clientY - rect.top + 12, rect.height - 120),
     });
@@ -214,14 +221,14 @@ export default function MapPage() {
 
   const hoveredStats = hovered?.a2 ? activeStats.get(hovered.a2) : null;
   const hoveredVisa = hovered?.a2 ? getVisaStatus(hovered.a2, passport) : null;
-  const selectedName = selected ? (lang === "ru" ? (countryNames[selected] ?? selected) : selected) : "";
+  const selectedName = selected ? countryLabel(selected, lang, selected) : "";
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
       {/* Назад */}
-      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
         {t("nav.back_home", lang)}
-      </a>
+      </Link>
 
       <div>
         <h1 className="text-2xl font-bold">{t("map.title", lang)}</h1>
@@ -266,6 +273,8 @@ export default function MapPage() {
         </div>
       </div>
 
+      {catalogError && <p role="status" className="text-sm text-zinc-500">{t("empty.catalog_unavailable", lang)}</p>}
+
       {/* Карта */}
       <div
         ref={containerRef}
@@ -273,6 +282,8 @@ export default function MapPage() {
       >
         {loading ? (
           <div className="skeleton w-full" style={{ aspectRatio: `${MAP_W}/${MAP_H}` }} />
+        ) : mapError ? (
+          <p role="status" className="px-5 py-10 text-center text-sm text-zinc-600 dark:text-zinc-300">{t("map.unavailable", lang)}</p>
         ) : (
           <svg
             ref={svgRef}
@@ -349,7 +360,7 @@ export default function MapPage() {
             className="absolute z-10 w-56 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-lg p-3 pointer-events-none"
             style={{ left: hovered.x, top: hovered.y }}
           >
-            <p className="font-semibold text-sm">{hovered.name}</p>
+            <p className="font-semibold text-sm">{countryLabel(hovered.a2, lang, hovered.fallbackName)}</p>
             {hoveredVisa && (
               <p className="text-xs mt-0.5" style={{ color: visaColors[hoveredVisa] }}>
                 {t(`visa.${hoveredVisa}` as Parameters<typeof t>[0], lang)}
@@ -439,7 +450,7 @@ export default function MapPage() {
                         <a key={c.id} href={`/concert/${c.id}`} className="flex justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
                           <span className="truncate">{c.city}</span>
                           <span className="flex-shrink-0">
-                            {new Date(c.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" })}
+                            {formatConcertDate(c, lang)}
                           </span>
                         </a>
                       ))}

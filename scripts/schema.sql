@@ -18,6 +18,7 @@ create table if not exists subscriptions (
   email text not null,
   artist_slug text not null,
   artist_name text,
+  email_lang text not null default 'ru' check (email_lang in ('ru', 'en')),
   confirmed boolean not null default false,
   confirm_token uuid not null default gen_random_uuid(),
   -- Персональные фильтры уведомлений:
@@ -29,6 +30,7 @@ create table if not exists subscriptions (
 );
 
 -- Если таблица уже создана — доехать до новых колонок:
+alter table subscriptions add column if not exists email_lang text not null default 'ru' check (email_lang in ('ru', 'en'));
 alter table subscriptions add column if not exists passport text;
 alter table subscriptions add column if not exists origin_city text;
 alter table subscriptions add column if not exists visa_free_only boolean not null default false;

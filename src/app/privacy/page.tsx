@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useSettings } from "@/components/SettingsContext";
 import { t } from "@/lib/i18n";
 
@@ -11,9 +13,9 @@ export default function PrivacyPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
-      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
         {t("nav.back_home", lang)}
-      </a>
+      </Link>
 
       <h1 className="text-2xl font-bold">
         {ru ? "Политика конфиденциальности" : "Privacy Policy"}

@@ -1,9 +1,24 @@
+import type { Lang } from "@/lib/i18n";
 import type { CorePassportCode, VisaStatus } from "@/types";
 import { visaMatrix } from "@/data/visa-matrix";
+import overrides from "@/data/visa-overrides.json";
+
+interface VerifiedVisaRule {
+  status: VisaStatus;
+  days: number | null;
+  verified: string;
+  source: string;
+}
+
+const verifiedRules = overrides as Record<string, Record<string, VerifiedVisaRule>>;
+
+export function getVerifiedVisaRule(countryCode: string, passport: string): VerifiedVisaRule | undefined {
+  return verifiedRules[passport]?.[countryCode];
+}
 
 export const VISA_LAST_UPDATED = "2026-02-17";
 
-// Расшифровка кода из визовой матрицы (F/A/E/R + срок) в наш VisaStatus
+// Расшифровка кода и срока из визовой матрицы
 function decodeMatrixCode(code: string): { status: VisaStatus; days: number | null } {
   const letter = code[0];
   const days = code.length > 1 ? parseInt(code.slice(1), 10) : null;
@@ -11,7 +26,10 @@ function decodeMatrixCode(code: string): { status: VisaStatus; days: number | nu
     case "F": return { status: "visa_free", days: Number.isNaN(days as number) ? null : days };
     case "A": return { status: "visa_on_arrival", days: null };
     case "E": return { status: "evisa", days: null };
-    default: return { status: "visa_required", days: null };
+    case "T": return { status: "eta", days: null };
+    case "X": return { status: "entry_restricted", days: null };
+    case "R": return { status: "visa_required", days: null };
+    default: return { status: "unknown", days: null };
   }
 }
 
@@ -174,7 +192,10 @@ export const visaStatusLabels: Record<VisaStatus, string> = {
   visa_free: "Без визы",
   visa_on_arrival: "Виза по прилёту",
   evisa: "Электронная виза",
+  eta: "Нужно разрешение ETA",
   visa_required: "Нужна виза",
+  entry_restricted: "Въезд ограничен",
+  unknown: "Уточните правила",
 };
 
 // Подробная визовая информация: сроки безвизового пребывания
@@ -291,22 +312,25 @@ const extendedVisaData: Record<string, Record<string, VisaStatus>> = {
     AE: "visa_on_arrival", TH: "visa_on_arrival",
     DE: "visa_required", FR: "visa_required", US: "visa_required",
   },
-  // Паспорта ЕС / развитых стран — безвиз почти везде
-  US: { _default: "visa_free", RU: "visa_required", CN: "visa_required", IN: "visa_required" },
-  GB: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
-  DE: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
-  FR: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
-  IL: { _default: "visa_free", RU: "visa_free", MY: "visa_required" },
-  TR: { _default: "visa_required", GE: "visa_free", AZ: "visa_free", KZ: "visa_free", RS: "visa_free", BA: "visa_free" },
-  JP: { _default: "visa_free", RU: "visa_required", CN: "visa_required" },
-  KR: { _default: "visa_free", RU: "visa_required" },
+  // Дополнительные точечные записи
+  US: { RU: "visa_required", CN: "visa_required", IN: "visa_required" },
+  GB: { RU: "visa_required", CN: "visa_required" },
+  DE: { RU: "visa_required", CN: "visa_required" },
+  FR: { RU: "visa_required", CN: "visa_required" },
+  IL: { RU: "visa_free", MY: "visa_required" },
+  TR: { GE: "visa_free", AZ: "visa_free", KZ: "visa_free", RS: "visa_free", BA: "visa_free" },
+  JP: { RU: "visa_required", CN: "visa_required" },
+  KR: { RU: "visa_required" },
 };
 
 export function getVisaStatus(countryCode: string, passport: string): VisaStatus {
   // 1. Свой паспорт = своя страна — виза не нужна
   if (countryCode === passport) return "visa_free";
 
-  // 2. Основной источник — визовая матрица (Passport Index, 199×199)
+  const verified = getVerifiedVisaRule(countryCode, passport);
+  if (verified) return verified.status;
+
+  // Матрица Passport Index для поддерживаемых паспортов
   const code = visaMatrix[passport]?.[countryCode];
   if (code) return decodeMatrixCode(code).status;
 
@@ -315,15 +339,7 @@ export function getVisaStatus(countryCode: string, passport: string): VisaStatus
   const coreResult = visaData[countryCode]?.[corePassport];
   if (coreResult) return coreResult;
 
-  // 4. Фолбэк: расширенная ручная таблица
-  const extData = extendedVisaData[passport];
-  if (extData) {
-    if (extData[countryCode]) return extData[countryCode];
-    if (extData._default) return extData._default as VisaStatus;
-  }
-
-  // 5. Дефолт: если данных нет — предполагаем что виза нужна (безопаснее)
-  return "visa_required";
+  return extendedVisaData[passport]?.[countryCode] ?? "unknown";
 }
 
 /**
@@ -331,18 +347,32 @@ export function getVisaStatus(countryCode: string, passport: string): VisaStatus
  * Сначала кураторские строки (красивые формулировки вроде «90/180 дней»),
  * затем срок из визовой матрицы.
  */
-export function getVisaDetails(countryCode: string, passport: string): string | null {
+export function getVisaDetails(countryCode: string, passport: string, lang: Lang = "ru"): string | null {
+  const verified = getVerifiedVisaRule(countryCode, passport);
+  if (verified) {
+    const days = verified.days;
+    return days == null ? null : lang === "ru" ? daysRu(days) : `${days} ${days === 1 ? "day" : "days"}`;
+  }
+
   const curated = visaDetails[countryCode]?.[passport];
-  if (curated) return curated;
+  if (curated) {
+    if (lang === "ru") return curated;
+    return curated
+      .replace(/^(\d+)\/(\d+) дней$/, "$1 days in any $2-day period")
+      .replace(/(\d+) (дней|дня|день|лет|года|год|месяцев|месяца|месяц)$/, (_, quantity: string, unit: string) => {
+        const english = unit.startsWith("месяц") ? "month" : /^(год|лет)/.test(unit) ? "year" : "day";
+        return `${quantity} ${english}${quantity === "1" ? "" : "s"}`;
+      });
+  }
 
   const code = visaMatrix[passport]?.[countryCode];
   if (code) {
     const { status, days } = decodeMatrixCode(code);
-    if (status === "visa_free" && days != null) return daysRu(days);
+    if (status === "visa_free" && days != null) return lang === "ru" ? daysRu(days) : `${days} ${days === 1 ? "day" : "days"}`;
   }
   return null;
 }
 
 export function isVisaFree(status: VisaStatus): boolean {
-  return status === "visa_free" || status === "visa_on_arrival" || status === "evisa";
+  return status === "visa_free" || status === "visa_on_arrival" || status === "evisa" || status === "eta";
 }

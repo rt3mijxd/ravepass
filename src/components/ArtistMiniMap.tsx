@@ -6,7 +6,7 @@ import { feature } from "topojson-client";
 import type { FeatureCollection, Feature, Geometry } from "geojson";
 import type { Topology } from "topojson-specification";
 import { numericToAlpha2, WORLD_ATLAS_URL } from "@/lib/geo";
-import { countryNames } from "@/data/visas";
+import { countryLabel } from "@/lib/country-label";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 
@@ -21,18 +21,22 @@ type CountryFeature = Feature<Geometry, { name?: string }>;
  */
 export default function ArtistMiniMap({ countryCodes, lang }: { countryCodes: string[]; lang: Lang }) {
   const [features, setFeatures] = useState<CountryFeature[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
   const active = useMemo(() => new Set(countryCodes.filter(Boolean)), [countryCodes]);
 
   useEffect(() => {
     let cancelled = false;
     fetch(WORLD_ATLAS_URL)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Could not load map");
+        return res.json();
+      })
       .then((topo: Topology) => {
         if (cancelled) return;
         const fc = feature(topo, topo.objects.countries) as unknown as FeatureCollection<Geometry, { name?: string }>;
         setFeatures(fc.features.filter((f) => Number(f.id) !== 10));
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setUnavailable(true); });
     return () => { cancelled = true; };
   }, []);
 
@@ -46,7 +50,7 @@ export default function ArtistMiniMap({ countryCodes, lang }: { countryCodes: st
   // Названия стран для подписи под картой
   const names = countryCodes
     .filter(Boolean)
-    .map((c) => (lang === "ru" ? (countryNames[c] ?? c) : c))
+    .map((c) => countryLabel(c, lang, c))
     .filter((v, i, arr) => arr.indexOf(v) === i);
 
   return (
@@ -58,7 +62,9 @@ export default function ArtistMiniMap({ countryCodes, lang }: { countryCodes: st
         </span>
       </div>
 
-      {features.length === 0 ? (
+      {unavailable ? (
+        <p role="status" className="text-xs text-zinc-600 dark:text-zinc-300">{t("map.unavailable", lang)}</p>
+      ) : features.length === 0 ? (
         <div className="skeleton w-full rounded-lg" style={{ aspectRatio: `${W}/${H}` }} />
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">

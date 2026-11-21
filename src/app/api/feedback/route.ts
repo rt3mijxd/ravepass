@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase";
-import { rateLimit, clientIp } from "@/lib/security";
+import { rateLimit, clientIp, readJsonObject, RequestBodyError } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,20 +9,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
     }
 
-    const body = await request.json();
-    const { name, email, message, missingArtist } = body as {
-      name?: string;
-      email?: string;
-      message?: string;
-      missingArtist?: string;
-    };
-
-    // Валидация
-    if (!message || message.trim().length === 0) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
-    }
-    if (message.length > 5000) {
-      return NextResponse.json({ error: "Message too long" }, { status: 400 });
+    const { name, email, message, missingArtist } = await readJsonObject(request);
+    if (typeof message !== "string" || !message.trim() || message.length > 5000
+      || (name != null && typeof name !== "string")
+      || (email != null && typeof email !== "string")
+      || (missingArtist != null && typeof missingArtist !== "string")) {
+      return NextResponse.json({ error: "invalid_feedback" }, { status: 400 });
     }
 
     const supabase = getServiceClient();
@@ -39,12 +31,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error("Feedback insert error:", error.message);
+      console.error("Feedback insert error code:", error.code);
       return NextResponse.json({ error: "Failed to save" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ error: "invalid_body" }, { status: error.status });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

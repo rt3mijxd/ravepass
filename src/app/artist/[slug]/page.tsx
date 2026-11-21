@@ -1,14 +1,19 @@
 "use client";
 
+import { formatConcertDate } from "@/lib/dates";
+import { concertLocation } from "@/lib/country-label";
 import { use, useState, useMemo, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
 import SearchableSelect from "@/components/SearchableSelect";
 import ArtistMiniMap from "@/components/ArtistMiniMap";
 import SubscribeButton from "@/components/SubscribeButton";
 import { useSettings } from "@/components/SettingsContext";
-import { t, pluralizeI18n, convertPrice, formatPrice } from "@/lib/i18n";
+import { t, pluralizeI18n } from "@/lib/i18n";
+import { displayMoney, formatMoney } from "@/lib/prices";
+import { usePriceQuotes } from "@/lib/use-price-quotes";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
 import type { Concert } from "@/types";
@@ -22,12 +27,12 @@ function unslugify(slug: string): string {
 
 export default function ArtistPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { lang, currency } = useSettings();
+  const { lang, currency, passport, setPassport, originCity, setOriginCity } = useSettings();
+  const quotes = usePriceQuotes();
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [artistInfo, setArtistInfo] = useState<{ name: string; imageUrl: string; genre: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [passport, setPassport] = useState("RU");
-  const [originCity, setOriginCity] = useState("MOW");
+  const [catalogError, setCatalogError] = useState(false);
   const [visaFreeOnly, setVisaFreeOnly] = useState(false);
   const [directOnly, setDirectOnly] = useState(false);
 
@@ -37,7 +42,10 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
   useEffect(() => {
     const artistName = unslugify(slug);
     fetch(`/api/artist?name=${encodeURIComponent(artistName)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Could not load artist concerts");
+        return res.json();
+      })
       .then((data) => {
         if (data.concerts && Array.isArray(data.concerts)) {
           setConcerts(data.concerts);
@@ -46,7 +54,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
           setArtistInfo(data.artist);
         }
       })
-      .catch(() => {})
+      .catch(() => setCatalogError(true))
       .finally(() => setLoading(false));
   }, [slug]);
 
@@ -67,7 +75,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
     const visaFree = filteredConcerts.filter((c) => isVisaFree(getVisaStatus(c.countryCode, passport))).length;
     const countries = new Set(filteredConcerts.map((c) => c.countryCode).filter(Boolean)).size;
 
-    const dates = concerts.map((c) => c.date).filter(Boolean).sort();
+    const dates = concerts.flatMap((c) => [c.date, c.dateEnd ?? c.date]).filter(Boolean).sort();
     const firstDate = dates[0];
     const lastDate = dates[dates.length - 1];
 
@@ -117,10 +125,10 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
   if (concerts.length === 0 && !artistInfo) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">{t("artist.not_found", lang)}</h1>
-        <a href="/" className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">
+        <h1 className="text-2xl font-bold mb-4">{t(catalogError ? "empty.catalog_unavailable" : "artist.not_found", lang)}</h1>
+        <Link href="/" className="inline-block text-sm font-medium text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-2.5 hover:bg-orange-500/20 transition-colors">
           {t("nav.back_home", lang)}
-        </a>
+        </Link>
       </div>
     );
   }
@@ -135,9 +143,9 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <a href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 transition-colors">
         {t("nav.back_all", lang)}
-      </a>
+      </Link>
 
       {/* Профиль артиста */}
       <div className="flex gap-5 items-start">
@@ -154,7 +162,7 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
             <p className="text-zinc-500 text-sm">{artistInfo?.genre || concerts[0]?.artist.genre}</p>
           )}
           {formatTourDates() && (
-            <p className="text-xs text-zinc-600 mt-1">{t("artist.tour", lang)}: {formatTourDates()}</p>
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{t("artist.tour", lang)}: {formatTourDates()}</p>
           )}
         </div>
       </div>
@@ -241,26 +249,30 @@ export default function ArtistPage({ params }: { params: Promise<{ slug: string 
         {filteredConcerts.map((concert) => {
           const visa = getVisaStatus(concert.countryCode, passport);
           const flight = findFlightRoute(originCity, concert.city);
+          const price = displayMoney(concert.priceMin, concert.currency, currency, quotes);
           return (
             <a key={concert.id} href={`/concert/${concert.id}`}
               className="block bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">{concert.city}{concert.country ? `, ${concert.country}` : ""}</p>
+                  <p className="font-medium">{concertLocation(concert, lang)}</p>
                   <p className="text-sm text-zinc-400">
-                    {new Date(concert.date + "T12:00:00").toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "long", year: "numeric" })}
+                    {formatConcertDate(concert, lang, { day: "numeric", month: "long", year: "numeric" })}
                     {concert.time ? `, ${concert.time.slice(0, 5)}` : ""}
                   </p>
-                  <p className="text-sm text-zinc-500">{concert.venue}</p>
-                  {concert.priceMin != null && (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{concert.venue}</p>
+                  {price && (
                     <p className="text-xs text-zinc-600 mt-0.5">
-                      {t("artist.from", lang)} {formatPrice(convertPrice(concert.priceMin, concert.currency ?? "USD", currency), currency, lang)}
+                      {t("artist.from", lang)} {formatMoney(price, lang)}
                     </p>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      isVisaFree(visa) ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/15 text-red-400"
+                      visa === "visa_free" ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                        : isVisaFree(visa) ? "bg-amber-500/15 text-amber-900 dark:text-amber-300"
+                          : visa === "unknown" ? "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
+                            : "bg-red-500/15 text-red-800 dark:text-red-300"
                     }`}>
                       {t(`visa.${visa}` as Parameters<typeof t>[0], lang)}
                     </span>

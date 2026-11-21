@@ -28,4 +28,4 @@ export const numericToAlpha2: Record<number, string> = {
 };
 
 // URL карты мира (TopoJSON, кэшируется браузером)
-export const WORLD_ATLAS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+export const WORLD_ATLAS_URL = "/maps/countries-110m.json";

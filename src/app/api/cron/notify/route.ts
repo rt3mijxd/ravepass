@@ -7,6 +7,7 @@ import { getCisConcertsByArtistSlug } from "@/data/cis-artists";
 import { filterUpcoming } from "@/lib/dates";
 import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
+import { siteOrigin } from "@/lib/security";
 import type { Concert } from "@/types";
 
 export const maxDuration = 60; // секунд (Vercel)
@@ -15,12 +16,7 @@ function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false; // не настроено — не запускаем
   const header = req.headers.get("authorization");
-  const query = req.nextUrl.searchParams.get("secret");
-  return header === `Bearer ${secret}` || query === secret;
-}
-
-function siteUrl(req: NextRequest): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin;
+  return header === `Bearer ${secret}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -36,10 +32,10 @@ export async function GET(request: NextRequest) {
   // 1. Уникальные артисты среди подтверждённых подписок
   const { data: subs, error } = await supabase
     .from("subscriptions")
-    .select("email, artist_slug, artist_name, confirm_token, passport, origin_city, visa_free_only, direct_only")
+    .select("email, artist_slug, artist_name, confirm_token, passport, origin_city, visa_free_only, direct_only, email_lang")
     .eq("confirmed", true);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "storage_failed" }, { status: 500 });
   }
   if (!subs || subs.length === 0) {
     return NextResponse.json({ ok: true, message: "no subscribers" });
@@ -52,7 +48,7 @@ export async function GET(request: NextRequest) {
     a.subs.push(s);
   }
 
-  const base = siteUrl(request);
+  const base = siteOrigin();
   let emailsSent = 0;
   let newConcertsTotal = 0;
 
@@ -103,7 +99,8 @@ export async function GET(request: NextRequest) {
       if (matching.length === 0) continue; // подписчику нечего слать по его фильтрам
 
       const unsubUrl = `${base}/api/unsubscribe?token=${sub.confirm_token}`;
-      const { subject, html } = newConcertsEmail(info.name, matching.slice(0, 8), unsubUrl);
+      const lang = sub.email_lang === "en" ? "en" : "ru";
+      const { subject, html } = newConcertsEmail(info.name, matching.slice(0, 8), unsubUrl, lang);
       const ok = await sendEmail(sub.email, subject, html);
       if (ok) emailsSent++;
     }

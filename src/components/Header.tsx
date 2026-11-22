@@ -91,7 +91,12 @@ export default function Header() {
           <div className="flex min-w-0 items-center gap-3 sm:gap-5">
             <Link href="/" className="rp-focus flex shrink-0 items-center gap-2 rounded-lg">
               <Image src="/logo.svg" alt="" width={29} height={29} className="size-[29px] rounded-lg" preload />
-              <span className="text-xl font-bold tracking-[-0.045em]">Rave<span className="text-orange-700 dark:text-orange-400">Pass</span></span>
+              <span className="relative text-xl font-bold tracking-[-0.045em]">
+                Rave<span className="text-orange-700 dark:text-orange-400">Pass</span>
+                <span className="absolute right-0 bottom-full rounded bg-orange-100 px-1.5 text-[10px] leading-3.5 font-bold tracking-wide text-orange-900 uppercase dark:bg-orange-950 dark:text-orange-200">
+                  {lang === "ru" ? "Бета" : "Beta"}
+                </span>
+              </span>
             </Link>
             <ConcertMapLink lang={lang} onHome={pathname === "/"} isCurrent={pathname === "/map"} />
           </div>

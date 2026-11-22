@@ -17,7 +17,7 @@ export default function ConcertMapLink({ lang, inSearch, onHome, isCurrent }: Co
       className={`rp-focus shrink-0 items-center rounded-xl border text-sm font-semibold transition-colors
         ${inSearch
           ? "hidden min-h-12 gap-2.5 border-orange-700/20 bg-orange-500/8 px-3.5 text-orange-900 hover:border-orange-600/55 hover:bg-orange-500/15 lg:inline-flex dark:border-orange-400/25 dark:text-orange-200"
-          : `inline-flex min-h-11 gap-1.5 border-zinc-200 bg-zinc-50 px-2.5 text-zinc-700 hover:border-orange-600/45 hover:text-orange-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:text-orange-200 ${onHome ? "lg:hidden" : ""}`}
+          : `inline-flex min-h-11 gap-1 border-zinc-200 bg-zinc-50 px-2 text-zinc-700 sm:gap-1.5 sm:px-2.5 hover:border-orange-600/45 hover:text-orange-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:text-orange-200 ${onHome ? "lg:hidden" : ""}`}
         aria-[current=page]:border-orange-600/50 aria-[current=page]:text-orange-800 dark:aria-[current=page]:text-orange-200`}
     >
       <svg aria-hidden="true" className="size-[18px] shrink-0 text-orange-700 dark:text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round">

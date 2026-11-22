@@ -87,15 +87,15 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-            <Link href="/" className="rp-focus flex shrink-0 items-center gap-2 rounded-lg">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-5">
+            <Link href="/" className="rp-focus flex shrink-0 items-center gap-1.5 rounded-lg sm:gap-2">
               <Image src="/logo.svg" alt="" width={29} height={29} className="size-[29px] rounded-lg" preload />
-              <span className="relative text-xl font-bold tracking-[-0.045em]">
+              <span className="whitespace-nowrap text-lg font-bold tracking-[-0.045em] sm:text-xl">
                 Rave<span className="text-orange-700 dark:text-orange-400">Pass</span>
-                <span className="absolute right-0 bottom-full rounded bg-orange-100 px-1.5 text-[10px] leading-3.5 font-bold tracking-wide text-orange-900 uppercase dark:bg-orange-950 dark:text-orange-200">
-                  {lang === "ru" ? "Бета" : "Beta"}
-                </span>
+              </span>
+              <span className="rounded-md border border-zinc-200 px-1.5 text-[11px] leading-4 font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+                {lang === "ru" ? "Бета" : "Beta"}
               </span>
             </Link>
             <ConcertMapLink lang={lang} onHome={pathname === "/"} isCurrent={pathname === "/map"} />

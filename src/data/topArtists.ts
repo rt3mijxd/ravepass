@@ -70,8 +70,12 @@ const cisAliases: Record<string, string[]> = {
 };
 
 export const TOP_CIS_ARTISTS = Object.keys(cisAliases);
-const cisNames = new Map(
-  Object.entries(cisAliases).flatMap(([name, aliases]) =>
+const artistAliases: Record<string, string[]> = {
+  ...cisAliases,
+  "Maroon 5": ["Марун 5", "Марун Файв"],
+};
+const canonicalNames = new Map(
+  Object.entries(artistAliases).flatMap(([name, aliases]) =>
     [name, ...aliases].map((alias): [string, string] => [slugify(alias), name]),
   ),
 );
@@ -89,12 +93,12 @@ export function compareArtistPopularity(a: string, b: string): number {
 
 export function canonicalArtistSlug(name: string): string {
   const slug = slugify(name);
-  const canonical = cisNames.get(slug);
+  const canonical = canonicalNames.get(slug);
   return canonical ? slugify(canonical) : slug;
 }
 
 export function matchesArtist(name: string, slug: string, query: string): boolean {
-  const canonical = cisNames.get(canonicalArtistSlug(slug));
-  const aliases = canonical ? [canonical, ...cisAliases[canonical]] : [];
+  const canonical = canonicalNames.get(canonicalArtistSlug(slug));
+  const aliases = canonical ? [canonical, ...artistAliases[canonical]] : [];
   return [name, ...aliases].some((term) => normalizeText(term).includes(query));
 }

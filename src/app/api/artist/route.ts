@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
-import { getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { canonicalArtistSlug } from "@/data/topArtists";
+import { getSupplementalConcerts } from "@/lib/promoter-concerts";
 import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
 import { rateLimit, clientIp } from "@/lib/security";
@@ -18,19 +19,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "name parameter required" }, { status: 400 });
   }
 
-  const curated = getCisConcertsByArtistSlug(name);
+  const slug = canonicalArtistSlug(name);
+  const extra = getSupplementalConcerts().then((concerts) =>
+    concerts.filter((concert) => canonicalArtistSlug(concert.artist.slug) === slug),
+  );
 
   let liveConcerts: Concert[];
   try {
     liveConcerts = await searchEventsByArtist(name);
   } catch {
-    if (filterUpcoming(curated).length === 0) {
+    if ((await extra).length === 0) {
       return NextResponse.json({ error: "catalog_unavailable" }, { status: 503 });
     }
     liveConcerts = [];
   }
 
-  const unique = new Map(mergeConcertSources(liveConcerts, curated).map((concert) => [concert.id, concert]));
+  const unique = new Map(mergeConcertSources(liveConcerts, await extra).map((concert) => [concert.id, concert]));
   const concerts = filterUpcoming([...unique.values()]).sort(
     (a, b) => a.date.localeCompare(b.date),
   );

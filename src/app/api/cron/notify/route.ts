@@ -3,7 +3,8 @@ import { getServiceClient } from "@/lib/supabase";
 import { sendEmail, isEmailConfigured } from "@/lib/resend";
 import { newConcertsEmail } from "@/lib/email-templates";
 import { searchEventsByArtist } from "@/lib/ticketmaster";
-import { getCisConcertsByArtistSlug } from "@/data/cis-artists";
+import { getSupplementalConcerts } from "@/lib/promoter-concerts";
+import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
 import { getVisaStatus, isVisaFree } from "@/data/visas";
 import { findFlightRoute } from "@/data/flights";
@@ -51,15 +52,14 @@ export async function GET(request: NextRequest) {
   const base = siteOrigin();
   let emailsSent = 0;
   let newConcertsTotal = 0;
+  const supplemental = artists.size > 0 ? await getSupplementalConcerts() : [];
 
   for (const [slug, info] of artists) {
-    // 2. Текущие предстоящие концерты артиста (TM + CIS)
     let concerts: Concert[] = [];
     try {
-      const tm = await searchEventsByArtist(info.name);
-      const cis = getCisConcertsByArtistSlug(slug);
-      const merged = [...tm, ...cis].filter((c) => c.artist.slug === slug || cis.includes(c));
-      concerts = filterUpcoming(merged);
+      const tm = (await searchEventsByArtist(info.name)).filter((concert) => concert.artist.slug === slug);
+      const extra = supplemental.filter((concert) => concert.artist.slug === slug);
+      concerts = filterUpcoming(mergeConcertSources(tm, extra));
     } catch {
       continue;
     }

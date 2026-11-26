@@ -14,7 +14,7 @@ import ConcertMapLink from "@/components/ConcertMapLink";
 import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { normalizeText } from "@/lib/slug";
-import { matchesArtist, topArtistRank } from "@/data/topArtists";
+import { canonicalArtistSlug, compareArtistPopularity, matchesArtist, topArtistRank } from "@/data/topArtists";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
 import type { Concert, VisaStatus } from "@/types";
@@ -114,8 +114,18 @@ export default function HomePage() {
     for (const group of groupMap.values()) {
       group.concerts.sort((a, b) => a.concert.date.localeCompare(b.concert.date));
     }
-    return Array.from(groupMap.values()).sort((a, b) => b.concerts.length - a.concerts.length);
-  }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter]);
+    return Array.from(groupMap.values()).sort((a, b) =>
+      compareArtistPopularity(a.slug, b.slug)
+      || a.concerts[0].concert.date.localeCompare(b.concerts[0].concert.date)
+      || a.artistName.localeCompare(b.artistName, lang),
+    );
+  }, [allConcerts, searchQuery, passport, originCity, visaFreeOnly, directOnly, countryFilter, lang]);
+
+  const query = normalizeText(searchQuery);
+  const externalArtistSlug = !loading && artistGroups.length === 0 && query
+    && !allConcerts.some(({ artist }) => matchesArtist(artist.name, artist.slug, query))
+    ? canonicalArtistSlug(searchQuery)
+    : "";
 
   const totalConcerts = artistGroups.reduce((sum, g) => sum + g.concerts.length, 0);
   const visaLabel = (visa: VisaStatus) => t(`visa.${visa}` as Parameters<typeof t>[0], lang);
@@ -130,6 +140,7 @@ export default function HomePage() {
       if (rank === undefined) continue; // не из списка мировых звёзд — пропускаем
       let g = map.get(s);
       if (!g) { g = { name: c.artist.name, slug: s, imageUrl: c.artist.imageUrl, count: 0, rank }; map.set(s, g); }
+      g.imageUrl ||= c.artist.imageUrl;
       g.count++;
     }
     return Array.from(map.values()).sort((a, b) => a.rank - b.rank).slice(0, 12);
@@ -180,6 +191,7 @@ export default function HomePage() {
                 type="search"
                 aria-label={t("search.placeholder", lang)}
                 value={searchQuery}
+                maxLength={200}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("search.placeholder", lang)}
                 className="rp-field min-h-12 w-full pl-12 pr-4 placeholder-zinc-500 dark:placeholder-zinc-400"
@@ -401,13 +413,21 @@ export default function HomePage() {
         </div>
 
         {!loading && artistGroups.length === 0 && (
-          <p className="text-center text-zinc-400 dark:text-zinc-500 py-12">
-            {catalogError
-              ? t("empty.catalog_unavailable", lang)
-              : searchQuery
-                ? (lang === "ru" ? `Артист «${searchQuery}» не найден` : `Artist "${searchQuery}" not found`)
-                : t("empty.no_concerts", lang)}
-          </p>
+          <div className="space-y-3 py-12 text-center">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {catalogError
+                ? t("empty.catalog_unavailable", lang)
+                : externalArtistSlug
+                  ? t("empty.artist_not_in_catalog", lang)
+                  : t("empty.no_concerts", lang)}
+            </p>
+            {externalArtistSlug && (
+              <Link href={`/artist/${encodeURIComponent(externalArtistSlug)}`} prefetch={false}
+                className="rp-focus inline-flex min-h-11 items-center rounded-xl border border-orange-500/35 bg-orange-500/10 px-4 text-sm font-semibold text-orange-800 transition-colors hover:bg-orange-500/20 dark:text-orange-300">
+                {t("search.try_ticketmaster", lang)}
+              </Link>
+            )}
+          </div>
         )}
       </section>
 

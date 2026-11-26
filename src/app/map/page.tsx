@@ -17,6 +17,7 @@ import { useSettings } from "@/components/SettingsContext";
 import { t, pluralizeI18n } from "@/lib/i18n";
 import { getPassportOptions } from "@/data/passports";
 import { getCityOptions } from "@/data/cities";
+import { compareArtistPopularity } from "@/data/topArtists";
 import type { Concert, VisaStatus } from "@/types";
 
 const MAP_W = 980;
@@ -135,9 +136,12 @@ export default function MapPage() {
       if (!g) { g = { name: c.artist.name, slug: c.artist.slug, imageUrl: c.artist.imageUrl, concerts: [] }; map.set(c.artist.slug, g); }
       g.concerts.push(c);
     }
-    // Сортировка по числу концертов (популярность) убыванию
-    return Array.from(map.values()).sort((a, b) => b.concerts.length - a.concerts.length);
-  }, [visibleConcerts, selected]);
+    return Array.from(map.values()).sort((a, b) =>
+      compareArtistPopularity(a.slug, b.slug)
+      || a.concerts[0].date.localeCompare(b.concerts[0].date)
+      || a.name.localeCompare(b.name, lang),
+    );
+  }, [visibleConcerts, selected, lang]);
 
   // Зум колёсиком (non-passive, чтобы блокировать скролл страницы)
   useEffect(() => {

@@ -16,7 +16,9 @@ export const TOP_WORLD_ARTISTS: string[] = [
   "Coldplay", "Ed Sheeran", "Beyoncé", "Kendrick Lamar", "Dua Lipa",
   "Bruno Mars", "Harry Styles", "Travis Scott", "Post Malone", "Olivia Rodrigo",
   "SZA", "Lady Gaga", "Doja Cat", "Karol G", "Sabrina Carpenter",
-  "Adele", "Metallica", "Rammstein", "Imagine Dragons", "Red Hot Chili Peppers",
+  "Adele", "Metallica", "Rammstein", "Imagine Dragons", "Red Hot Chili Peppers", "Maroon 5",
+  "BLACKPINK", "BTS", "Stray Kids", "TWICE", "SEVENTEEN", "ENHYPEN",
+  "J Balvin", "Shakira", "Ariana Grande", "Justin Bieber", "Rihanna", "Linkin Park",
   // Очень популярные
   "Arctic Monkeys", "Foo Fighters", "Katy Perry", "Nicki Minaj", "Tyler, The Creator",
   "Pink", "Twenty One Pilots", "Green Day", "Muse", "Tame Impala",
@@ -73,6 +75,17 @@ const cisNames = new Map(
     [name, ...aliases].map((alias): [string, string] => [slugify(alias), name]),
   ),
 );
+
+const cisArtistRank = new Map(
+  [...new Set(["Max Korzh", "Morgenshtern", "Skryptonite", "Bi-2", "Noize MC", "Poshlaya Molly",
+    "Monetochka", "Oxxxymiron", "Little Big", ...TOP_CIS_ARTISTS].map(canonicalArtistSlug))]
+    .map((slug, index) => [slug, TOP_WORLD_ARTISTS.length + index]),
+);
+
+export function compareArtistPopularity(a: string, b: string): number {
+  const rank = (slug: string) => topArtistRank.get(slug) ?? cisArtistRank.get(slug) ?? Number.MAX_SAFE_INTEGER;
+  return rank(a) - rank(b);
+}
 
 export function canonicalArtistSlug(name: string): string {
   const slug = slugify(name);

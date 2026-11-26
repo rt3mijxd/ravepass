@@ -220,12 +220,25 @@ export async function searchEventsByArtist(name: string): Promise<Concert[]> {
 
 const topArtistSlugs = new Set(TOP_WORLD_ARTISTS.map(slugify));
 
+// Основные направления для концертных поездок, включая региональные рынки Азии и СНГ.
+const featuredCountries = [
+  "TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL", "MA",
+  "UZ", "AZ", "CY", "PL", "DE", "SG", "PH", "TW",
+];
+
+async function discoverConcertsByCountry(countryCode: string): Promise<Concert[]> {
+  const firstPage = await searchEventsByCountry(countryCode);
+  if (firstPage.totalPages < 2) return firstPage.concerts;
+
+  const secondPage = await searchEventsByCountry(countryCode, { page: 1 });
+  return [...firstPage.concerts, ...secondPage.concerts];
+}
+
 export async function fetchFeaturedConcerts(): Promise<Concert[]> {
   const artists = [...TOP_WORLD_ARTISTS, ...TOP_CIS_ARTISTS];
-  const countries = ["TR", "AE", "RS", "GE", "AM", "KZ", "TH", "IL", "MA"];
   const queries = [
     ...artists.map((name) => () => searchEventsByArtist(name)),
-    ...countries.map((code) => async () => (await searchEventsByCountry(code)).concerts),
+    ...featuredCountries.map((code) => () => discoverConcertsByCountry(code)),
   ];
 
   const concerts = new Map<string, Concert>();

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEventsByCountry } from "@/lib/ticketmaster";
-import { cisConcerts } from "@/data/cis-artists";
 import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
 import { getFeaturedCached } from "@/lib/featured-concerts";
 import { clientIp, rateLimit } from "@/lib/security";
+import { getSupplementalConcerts } from "@/lib/promoter-concerts";
+import { matchesArtist } from "@/data/topArtists";
+import { normalizeText } from "@/lib/slug";
+import type { Concert } from "@/types";
 
 export const maxDuration = 120;
 
@@ -18,23 +21,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
   }
 
-  const matchingCurated = filterUpcoming(cisConcerts).filter(
-    (concert) => !country || concert.countryCode === country,
-  );
-
-  if (!process.env.TICKETMASTER_API_KEY) return curatedResponse(matchingCurated);
+  const query = normalizeText(keyword ?? "");
+  const extra = getSupplementalConcerts().then((concerts) => concerts.filter(
+    ({ countryCode, artist }) => (!country || countryCode === country)
+      && (!query || matchesArtist(artist.name, artist.slug, query)),
+  ));
 
   try {
-    const ticketmaster = country
-      ? (await searchEventsByCountry(country, { keyword: keyword ?? undefined })).concerts
-      : await getFeaturedCached();
-    return NextResponse.json(filterUpcoming(mergeConcertSources(ticketmaster, matchingCurated)));
+    const live = process.env.TICKETMASTER_API_KEY
+      ? country
+        ? searchEventsByCountry(country, { keyword: keyword ?? undefined }).then((page) => page.concerts)
+        : getFeaturedCached()
+      : Promise.resolve([]);
+    const [ticketmaster, supplemental] = await Promise.all([live, extra]);
+    const concerts = filterUpcoming(mergeConcertSources(ticketmaster, supplemental));
+    return process.env.TICKETMASTER_API_KEY ? NextResponse.json(concerts) : catalogResponse(concerts);
   } catch {
-    return curatedResponse(matchingCurated);
+    return catalogResponse(await extra);
   }
 }
 
-function curatedResponse(concerts: typeof cisConcerts) {
+function catalogResponse(concerts: Concert[]) {
   if (concerts.length > 0) return NextResponse.json(concerts);
   return NextResponse.json({ error: "catalog_unavailable" }, { status: 503 });
 }

@@ -26,6 +26,7 @@ const translations = {
   "home.title": { ru: "Концерты за рубежом", en: "Concerts abroad" },
   "home.subtitle": { ru: "Найди, где выступает любимый артист. Выбери поездку по визе и прямым рейсам.", en: "Find your favorite artists on tour. Filter by visa requirements and direct flights." },
   "home.filters": { ru: "Фильтры", en: "Filters" },
+  "search.try_ticketmaster": { ru: "Поискать в Ticketmaster", en: "Search Ticketmaster" },
   "search.placeholder": { ru: "Найти артиста...", en: "Search artist..." },
   "lucky.button": { ru: "Мне повезёт", en: "I'm feeling lucky" },
 
@@ -115,6 +116,7 @@ const translations = {
   "unit.ticket_plus": { ru: "+ билет", en: "+ ticket" },
 
   // Пустые состояния
+  "empty.artist_not_in_catalog": { ru: "В афише RavePass такого артиста пока нет", en: "This artist isn’t in the RavePass listings yet" },
   "empty.artist_not_found": { ru: "Артист «{query}» не найден", en: "Artist \"{query}\" not found" },
   "empty.catalog_unavailable": {
     ru: "Не удалось загрузить афишу. Попробуйте обновить страницу позже.",

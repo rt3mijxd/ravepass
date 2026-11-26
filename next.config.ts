@@ -31,6 +31,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.universe.com",
       },
+      {
+        protocol: "https",
+        hostname: "dynamicmedia.livenationinternational.com",
+        pathname: "/v/**",
+      },
     ],
   },
 };

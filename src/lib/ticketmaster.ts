@@ -242,14 +242,22 @@ export async function fetchFeaturedConcerts(): Promise<Concert[]> {
   ];
 
   const concerts = new Map<string, Concert>();
+  let failedQueries = 0;
   for (let i = 0; i < queries.length; i += 5) {
-    // Любая ошибка прерывает сборку каталога, чтобы частичный результат не заменил кэш.
-    const results = await Promise.all(queries.slice(i, i + 5).map((query) => query()));
+    const results = await Promise.allSettled(queries.slice(i, i + 5).map((query) => query()));
     for (const result of results) {
-      for (const concert of result) {
+      if (result.status === "rejected") {
+        failedQueries += 1;
+        continue;
+      }
+      for (const concert of result.value) {
         if (!concerts.has(concert.id)) concerts.set(concert.id, concert);
       }
     }
+  }
+  if (failedQueries > 0) {
+    if (concerts.size === 0) throw new Error("Ticketmaster catalog unavailable");
+    console.warn(`Ticketmaster catalog: ${failedQueries} of ${queries.length} queries failed`);
   }
 
   return [...concerts.values()].sort((a, b) => {

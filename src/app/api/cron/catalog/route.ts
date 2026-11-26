@@ -1,7 +1,7 @@
 import { getFeaturedCached } from "@/lib/featured-concerts";
 import { getPromoterConcerts } from "@/lib/promoter-concerts";
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;

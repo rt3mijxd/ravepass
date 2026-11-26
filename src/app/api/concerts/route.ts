@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { searchEventsByCountry } from "@/lib/ticketmaster";
 import { mergeConcertSources } from "@/lib/concert-catalog";
 import { filterUpcoming } from "@/lib/dates";
@@ -9,7 +9,7 @@ import { matchesArtist } from "@/data/topArtists";
 import { normalizeText } from "@/lib/slug";
 import type { Concert } from "@/types";
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 export async function GET(request: NextRequest) {
   const country = request.nextUrl.searchParams.get("country");
@@ -27,18 +27,38 @@ export async function GET(request: NextRequest) {
       && (!query || matchesArtist(artist.name, artist.slug, query)),
   ));
 
-  try {
-    const live = process.env.TICKETMASTER_API_KEY
-      ? country
-        ? searchEventsByCountry(country, { keyword: keyword ?? undefined }).then((page) => page.concerts)
-        : getFeaturedCached()
-      : Promise.resolve([]);
-    const [ticketmaster, supplemental] = await Promise.all([live, extra]);
-    const concerts = filterUpcoming(mergeConcertSources(ticketmaster, supplemental));
-    return process.env.TICKETMASTER_API_KEY ? NextResponse.json(concerts) : catalogResponse(concerts);
-  } catch {
-    return catalogResponse(await extra);
+  if (!process.env.TICKETMASTER_API_KEY) return catalogResponse(await extra);
+
+  if (country) {
+    try {
+      const [page, supplemental] = await Promise.all([
+        searchEventsByCountry(country, { keyword: keyword ?? undefined }),
+        extra,
+      ]);
+      return NextResponse.json(filterUpcoming(mergeConcertSources(page.concerts, supplemental)));
+    } catch {
+      return catalogResponse(await extra);
+    }
   }
+
+  const live = getFeaturedCached().catch(() => null);
+  const supplemental = await extra;
+  // При пустом кэше отдаём доступную афишу, продолжая прогрев в фоне.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const ticketmaster = await Promise.race([
+      live,
+      new Promise<null>((resolve) => { timer = setTimeout(resolve, 1_500, null); }),
+    ]);
+    if (ticketmaster !== null) {
+      return NextResponse.json(filterUpcoming(mergeConcertSources(ticketmaster, supplemental)));
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+
+  after(async () => { await live; });
+  return catalogResponse(supplemental);
 }
 
 function catalogResponse(concerts: Concert[]) {
